@@ -3,13 +3,13 @@ package api
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"math"
 	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 
+	"github.com/bytom/account"
 	"github.com/bytom/blockchain/txbuilder"
 	"github.com/bytom/consensus"
 	"github.com/bytom/consensus/segwit"
@@ -48,49 +48,6 @@ func (a *API) actionDecoder(action string) (func([]byte) (txbuilder.Action, erro
 	return decoder, true
 }
 
-// TODO modify mergeActions to loadSpendAction
-func mergeActions(req *BuildRequest) ([]map[string]interface{}, error) {
-	var actions []map[string]interface{}
-	actionMap := make(map[string]map[string]interface{})
-
-	for _, m := range req.Actions {
-		if actionType := m["type"].(string); actionType != "spend_account" {
-			actions = append(actions, m)
-			continue
-		}
-
-		if m["amount"] == nil {
-			return nil, errEmptyAmount
-		}
-
-		amountNumber := m["amount"].(json.Number)
-		amount, err := amountNumber.Int64()
-		if err != nil || amount == 0 {
-			return nil, errBadAmount
-		}
-
-		actionKey := m["asset_id"].(string) + m["account_id"].(string)
-		if tmpM, ok := actionMap[actionKey]; ok {
-			if tmpM["amount"] == nil {
-				return nil, errEmptyAmount
-			}
-
-			tmpNumber := tmpM["amount"].(json.Number)
-			tmpAmount, err := tmpNumber.Int64()
-			if err != nil || tmpAmount == 0 {
-				return nil, errBadAmount
-			}
-
-			tmpM["amount"] = json.Number(fmt.Sprintf("%v", tmpAmount+amount))
-		} else {
-			actionMap[actionKey] = m
-			actions = append(actions, m)
-		}
-	}
-
-	return actions, nil
-}
-
 func onlyHaveSpendActions(req *BuildRequest) bool {
 	count := 0
 	for _, m := range req.Actions {
@@ -112,13 +69,9 @@ func (a *API) buildSingle(ctx context.Context, req *BuildRequest) (*txbuilder.Te
 		return nil, errors.New("transaction only contain spend actions, didn't have output actions")
 	}
 
-	reqActions, err := mergeActions(req)
-	if err != nil {
-		return nil, errors.WithDetail(err, "unmarshal json amount error in mergeActions")
-	}
-
-	actions := make([]txbuilder.Action, 0, len(reqActions))
-	for i, act := range reqActions {
+	spendActions := []txbuilder.Action{}
+	actions := make([]txbuilder.Action, 0, len(req.Actions))
+	for i, act := range req.Actions {
 		typ, ok := act["type"].(string)
 		if !ok {
 			return nil, errors.WithDetailf(errBadActionType, "no action type provided on action %d", i)
@@ -138,8 +91,14 @@ func (a *API) buildSingle(ctx context.Context, req *BuildRequest) (*txbuilder.Te
 		if err != nil {
 			return nil, errors.WithDetailf(errBadAction, "%s on action %d", err.Error(), i)
 		}
-		actions = append(actions, action)
+
+		if typ == "spend_account" {
+			spendActions = append(spendActions, action)
+		} else {
+			actions = append(actions, action)
+		}
 	}
+	actions = append(account.MergeSpendAction(spendActions), actions...)
 
 	ttl := req.TTL.Duration
 	if ttl == 0 {
