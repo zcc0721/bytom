@@ -43,9 +43,11 @@ const (
 
 // Response describes the response standard.
 type Response struct {
-	Status string      `json:"status,omitempty"`
-	Msg    string      `json:"msg,omitempty"`
-	Data   interface{} `json:"data,omitempty"`
+	Status      string      `json:"status,omitempty"`
+	Code        string      `json:"code,omitempty"`
+	Msg         string      `json:"msg,omitempty"`
+	ErrorDetail string      `json:"error_detail,omitempty"`
+	Data        interface{} `json:"data,omitempty"`
 }
 
 //NewSuccessResponse success response
@@ -53,9 +55,34 @@ func NewSuccessResponse(data interface{}) Response {
 	return Response{Status: SUCCESS, Data: data}
 }
 
+//FormatErrResp format error response
+func FormatErrResp(err error) (response Response) {
+	response = Response{Status: FAIL}
+	root := errors.Root(err)
+	// Some types cannot be used as map keys, for example slices.
+	// If an error's underlying type is one of these, don't panic.
+	// Just treat it like any other missing entry.
+	defer func() {
+		if err := recover(); err != nil {
+			response.ErrorDetail = ""
+		}
+	}()
+
+	if info, ok := respErrFormatter[root]; ok {
+		response.Code = info.ChainCode
+		response.Msg = info.Message
+		response.ErrorDetail = errors.Detail(err)
+	}
+	return response
+}
+
 //NewErrorResponse error response
 func NewErrorResponse(err error) Response {
-	return Response{Status: FAIL, Msg: err.Error()}
+	response := FormatErrResp(err)
+	if response.Msg == "" {
+		response.Msg = err.Error()
+	}
+	return response
 }
 
 type waitHandler struct {
@@ -188,8 +215,6 @@ func (a *API) buildHandler() {
 
 		m.Handle("/build-transaction", jsonHandler(a.build))
 		m.Handle("/sign-transaction", jsonHandler(a.pseudohsmSignTemplates))
-		m.Handle("/submit-transaction", jsonHandler(a.submit))
-		m.Handle("/estimate-transaction-gas", jsonHandler(a.estimateTxGas))
 
 		m.Handle("/get-transaction", jsonHandler(a.getTransaction))
 		m.Handle("/list-transactions", jsonHandler(a.listTransactions))
@@ -217,6 +242,9 @@ func (a *API) buildHandler() {
 	m.Handle("/delete-transaction-feed", jsonHandler(a.deleteTxFeed))
 	m.Handle("/list-transaction-feeds", jsonHandler(a.listTxFeeds))
 
+	m.Handle("/submit-transaction", jsonHandler(a.submit))
+	m.Handle("/estimate-transaction-gas", jsonHandler(a.estimateTxGas))
+
 	m.Handle("/get-unconfirmed-transaction", jsonHandler(a.getUnconfirmedTx))
 	m.Handle("/list-unconfirmed-transactions", jsonHandler(a.listUnconfirmedTxs))
 	m.Handle("/decode-raw-transaction", jsonHandler(a.decodeRawTransaction))
@@ -232,9 +260,13 @@ func (a *API) buildHandler() {
 	m.Handle("/set-mining", jsonHandler(a.setMining))
 
 	m.Handle("/get-work", jsonHandler(a.getWork))
+	m.Handle("/get-work-json", jsonHandler(a.getWorkJSON))
 	m.Handle("/submit-work", jsonHandler(a.submitWork))
+	m.Handle("/submit-work-json", jsonHandler(a.submitWorkJSON))
 
 	m.Handle("/verify-message", jsonHandler(a.verifyMessage))
+	m.Handle("/decode-program", jsonHandler(a.decodeProgram))
+
 	m.Handle("/gas-rate", jsonHandler(a.gasRate))
 	m.Handle("/net-info", jsonHandler(a.getNetInfo))
 
