@@ -51,6 +51,11 @@ func init() {
 	runNodeCmd.Flags().Int("ws.max_num_websockets", config.Websocket.MaxNumWebsockets, "Max number of websocket connections")
 	runNodeCmd.Flags().Int("ws.max_num_concurrent_reqs", config.Websocket.MaxNumConcurrentReqs, "Max number of concurrent websocket requests that may be processed concurrently")
 
+	//sidecain
+	runNodeCmd.Flags().String("fedpeg_xpubs", config.Side.FedpegXPubs, "Change federated peg to use a different xpub.")
+	runNodeCmd.Flags().String("sign_block_script", config.Side.SignBlockScript, "Change federated peg to use a different script.")
+	runNodeCmd.Flags().Uint8("pegin_confirmation_depth", config.Side.PeginMinDepth, "Pegin claims must be this deep to be considered valid. (default: 6)")
+
 	RootCmd.AddCommand(runNodeCmd)
 }
 

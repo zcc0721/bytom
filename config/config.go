@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/bytom/protocol/vm/vmutil"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -154,6 +155,12 @@ type WebsocketConfig struct {
 	MaxNumConcurrentReqs int `mapstructure:"max_num_concurrent_reqs"`
 }
 
+type SideChainConfig struct {
+	FedpegXPubs     string `mapstructure:"fedpeg_xpubs"`
+	SignBlockScript string `mapstructure:"sign_block_script"`
+	PeginMinDepth   uint8  `mapstructure:"pegin_confirmation_depth"`
+}
+
 // Default configurable rpc's auth parameters.
 func DefaultRPCAuthConfig() *RPCAuthConfig {
 	return &RPCAuthConfig{
@@ -188,6 +195,16 @@ func DefaultWebsocketConfig() *WebsocketConfig {
 	return &WebsocketConfig{
 		MaxNumWebsockets:     25,
 		MaxNumConcurrentReqs: 20,
+	}
+}
+
+// DeafultSideChainConfig for sidechain
+func DeafultSideChainConfig() *SideChainConfig {
+	defaultScript, _ := vmutil.DefaultCoinbaseProgram()
+
+	return &SideChainConfig{
+		SignBlockScript: string(defaultScript),
+		PeginMinDepth:   6,
 	}
 }
 
