@@ -23,6 +23,7 @@ import (
 	"github.com/bytom/blockchain/txfeed"
 	cfg "github.com/bytom/config"
 	"github.com/bytom/consensus"
+	"github.com/bytom/crypto/ed25519/chainkd"
 	"github.com/bytom/database/leveldb"
 	"github.com/bytom/env"
 	"github.com/bytom/mining/cpuminer"
@@ -108,6 +109,13 @@ func NewNode(config *cfg.Config) *Node {
 	if !config.Wallet.Disable {
 		walletDB := dbm.NewDB("wallet", config.DBBackend, config.DBDir())
 		accounts = account.NewManager(walletDB, chain)
+		var federationRedeemXPubs []chainkd.XPub
+		for _, xpubStr := range strings.Split(config.Side.FedpegXPubs, ",") {
+			var xpub chainkd.XPub
+			copy(xpub[:], []byte(xpubStr)[:64])
+			federationRedeemXPubs = append(federationRedeemXPubs, xpub)
+		}
+		accounts.SetFederationRedeemXPubs(federationRedeemXPubs)
 		assets = asset.NewRegistry(walletDB, chain)
 		wallet, err = w.NewWallet(walletDB, accounts, assets, hsm, chain)
 		if err != nil {
