@@ -1,7 +1,11 @@
 package vmutil
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+
 	"github.com/bytom/crypto/ed25519"
+	"github.com/bytom/crypto/ed25519/chainkd"
 	"github.com/bytom/errors"
 	"github.com/bytom/protocol/vm"
 )
@@ -157,4 +161,27 @@ func checkMultiSigParams(nrequired, npubkeys int64) error {
 		return errors.WithDetail(ErrBadValue, "quorum empty with non-empty pubkey list")
 	}
 	return nil
+}
+
+func CalculateContract(federationRedeemXPub []chainkd.XPub, claimScript []byte) []byte {
+	//func CalculateContract(federationRedeemScript []byte, scriptPubKey []byte) []byte {
+	//-fedpegscript=需要的公钥+公钥长度+公钥+……+公钥长度+公钥+公钥个数+OP_CHECKMULTISIG
+	var federationRedeemScript []byte
+	if len(federationRedeemXPub) == 0 {
+		federationRedeemScript, _ = DefaultCoinbaseProgram()
+	} else {
+		var pubkeys []ed25519.PublicKey
+		for _, xpub := range federationRedeemXPub {
+			// pub + scriptPubKey 生成一个随机数A
+			var tmp [32]byte
+			h := hmac.New(sha256.New, xpub[:])
+			h.Write(claimScript)
+			tweak := h.Sum(tmp[:])
+			// pub +  A 生成一个新的公钥pub_new
+			chaildXPub := xpub.Child(tweak)
+			pubkeys = append(pubkeys, chaildXPub.PublicKey())
+		}
+		federationRedeemScript, _ = P2SPMultiSigProgram(pubkeys, len(pubkeys))
+	}
+	return federationRedeemScript
 }

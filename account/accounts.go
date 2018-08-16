@@ -176,6 +176,24 @@ func (m *Manager) CreateAddress(accountID string, change bool) (cp *CtrlProgram,
 	return m.createAddress(account, change)
 }
 
+func (m *Manager) CreatePeginAddress(accountID string, change bool) (string, string, error) {
+	// 通过配置获取
+	var federationRedeemXPub []chainkd.XPub
+	claimCtrlProg, _ := m.CreateAddress(accountID, change)
+	claimScript := claimCtrlProg.ControlProgram
+	federationRedeemScript := vmutil.CalculateContract(federationRedeemXPub, claimScript)
+
+	scriptHash := crypto.Sha256(federationRedeemScript)
+
+	address, err := common.NewAddressWitnessScriptHash(scriptHash, &consensus.ActiveNetParams)
+	if err != nil {
+		return "", "", err
+	}
+
+	return address.EncodeAddress(), string(claimScript), nil
+
+}
+
 // DeleteAccount deletes the account's ID or alias matching accountInfo.
 func (m *Manager) DeleteAccount(aliasOrID string) (err error) {
 	account := &Account{}
