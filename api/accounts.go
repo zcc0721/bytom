@@ -204,3 +204,18 @@ func (a *API) setMiningAddress(ctx context.Context, in struct {
 		MiningAddress: miningAddress,
 	})
 }
+
+type fundingResp struct {
+	MainchainAddress string `json:"mainchain_address"`
+	ClaimScript      string `json:"claim_script"`
+}
+
+func (a *API) getpeginaddress(ctx context.Context) Response {
+	// 问题：怎么把私钥、公钥变成新的私钥、公钥
+	mainchainAddress := ""
+	claimScript := ""
+	return NewSuccessResponse(fundingResp{
+		MainchainAddress: mainchainAddress,
+		ClaimScript:      claimScript,
+	})
+}
