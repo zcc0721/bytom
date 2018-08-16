@@ -92,6 +92,9 @@ type Params struct {
 	Name            string
 	Bech32HRPSegwit string
 	Checkpoints     []Checkpoint
+	FedpegScript    string
+	SignBlockScript string
+	PeginMinDepth   uint8
 }
 
 // ActiveNetParams is ...
