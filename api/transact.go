@@ -337,3 +337,18 @@ func (a *API) estimateTxGas(ctx context.Context, in struct {
 	}
 	return NewSuccessResponse(txGasResp)
 }
+
+func (a *API) claimPeginTx(ctx context.Context, ins struct {
+	RawTx       types.Tx `json:"raw_transaction"`
+	TxOutProof  string   `json:"tx_out_proof"`
+	ClaimScript string   `json:"claim_script"`
+}) Response {
+	// raw transaction
+	// proof验证
+	// 找出与claim script有关联的交易的输出
+	// 用输出作为交易输入 生成新的交易
+	// 发送交易
+	//
+	log.WithField("tx_id", ins.RawTx.ID.String()).Info("submit single tx")
+	return NewSuccessResponse(&submitTxResp{TxID: &ins.RawTx.ID})
+}
