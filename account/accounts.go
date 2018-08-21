@@ -198,6 +198,21 @@ func (m *Manager) CreatePeginAddress(accountID string, change bool) (string, str
 
 }
 
+func (m *Manager) GetPeginControlPrograms(claimScript []byte) (string, []byte) {
+	federationRedeemScript := vmutil.CalculateContract(m.federationRedeemXPubs, claimScript)
+	scriptHash := crypto.Sha256(federationRedeemScript)
+
+	address, err := common.NewAddressWitnessScriptHash(scriptHash, &consensus.ActiveNetParams)
+	if err != nil {
+		return "", nil
+	}
+	control, err := vmutil.P2WSHProgram(scriptHash)
+	if err != nil {
+		return "", nil
+	}
+	return address.EncodeAddress(), control
+}
+
 // DeleteAccount deletes the account's ID or alias matching accountInfo.
 func (m *Manager) DeleteAccount(aliasOrID string) (err error) {
 	account := &Account{}

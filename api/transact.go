@@ -1,8 +1,10 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"math"
 	"strings"
 	"time"
@@ -13,6 +15,7 @@ import (
 	"github.com/bytom/blockchain/txbuilder"
 	"github.com/bytom/consensus"
 	"github.com/bytom/consensus/segwit"
+	"github.com/bytom/crypto/sha3pool"
 	"github.com/bytom/errors"
 	"github.com/bytom/math/checked"
 	"github.com/bytom/net/http/reqid"
@@ -338,7 +341,17 @@ func (a *API) estimateTxGas(ctx context.Context, in struct {
 	return NewSuccessResponse(txGasResp)
 }
 
+func getPeginTxnOutputIndex(rawTx types.Tx, controlProg []byte) int {
+	for index, output := range rawTx.Outputs {
+		if bytes.Equal(output.ControlProgram, controlProg) {
+			return index
+		}
+	}
+	return 0
+}
+
 func (a *API) claimPeginTx(ctx context.Context, ins struct {
+	Password    string   `json:"password"`
 	RawTx       types.Tx `json:"raw_transaction"`
 	TxOutProof  string   `json:"tx_out_proof"`
 	ClaimScript string   `json:"claim_script"`
@@ -346,9 +359,91 @@ func (a *API) claimPeginTx(ctx context.Context, ins struct {
 	// raw transaction
 	// proof验证
 	// 找出与claim script有关联的交易的输出
+	var address string
+	var controlProg []byte
+	nOut := len(ins.RawTx.Outputs)
+	if ins.ClaimScript == "" {
+		// 遍历寻找与交易输出有关的claim script
+		cps, err := a.wallet.AccountMgr.ListControlProgram()
+		if err != nil {
+			return NewErrorResponse(err)
+		}
+
+		for _, cp := range cps {
+			address, controlProg = a.wallet.AccountMgr.GetPeginControlPrograms(cp.ControlProgram)
+			if controlProg == nil {
+				continue
+			}
+			// 获取交易的输出
+			nOut = getPeginTxnOutputIndex(ins.RawTx, controlProg)
+		}
+	} else {
+		address, controlProg = a.wallet.AccountMgr.GetPeginControlPrograms([]byte(ins.ClaimScript))
+		// 获取交易的输出
+		nOut = getPeginTxnOutputIndex(ins.RawTx, controlProg)
+	}
+	if nOut == len(ins.RawTx.Outputs) {
+		return NewErrorResponse(errors.New("Failed to find output in bytom to the mainchain_address from getpeginaddress"))
+	}
+	fmt.Println(address, controlProg, nOut)
+
+	// 根据ClaimScript 获取account id
+
+	var hash [32]byte
+	sha3pool.Sum256(hash[:], []byte(ins.ClaimScript))
+	data := a.wallet.DB.Get(account.ContractKey(hash))
+	if data == nil {
+		return NewErrorResponse(errors.New("Failed to find control program through claim script"))
+	}
+
+	cp := &account.CtrlProgram{}
+	if err := json.Unmarshal(data, cp); err != nil {
+		return NewErrorResponse(errors.New("Failed on unmarshal control program"))
+	}
+	// 构造交易
 	// 用输出作为交易输入 生成新的交易
-	// 发送交易
-	//
-	log.WithField("tx_id", ins.RawTx.ID.String()).Info("submit single tx")
+	buildReqs := &BuildRequest{}
+	act := make(map[string]interface{})
+	// gas
+	act["type"] = "spend_account"
+	act["asset_id"] = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+	act["amount"] = 0
+	act["account_id"] = cp.AccountID
+	buildReqs.Actions = append(buildReqs.Actions, act)
+	// 输入
+	act["amount"] = ins.RawTx.Outputs[nOut].Amount
+	buildReqs.Actions = append(buildReqs.Actions, act)
+	// 输出
+	act["type"] = "control_address"
+	act["amount"] = ins.RawTx.Outputs[nOut].Amount
+	act["address"] = ""
+	delete(act, "account_id")
+	buildReqs.Actions = append(buildReqs.Actions, act)
+	tmpl, err := a.buildSingle(ctx, buildReqs)
+	if err != nil {
+		return NewErrorResponse(err)
+	}
+	// todo把一些主链的信息加到交易的stack中
+
+	// 交易签名
+	if err := txbuilder.Sign(ctx, tmpl, ins.Password, a.PseudohsmSignTemplate); err != nil {
+		log.WithField("build err", err).Error("fail on sign transaction.")
+		return NewErrorResponse(err)
+	}
+	// submit
+	if err := txbuilder.FinalizeTx(ctx, a.chain, &ins.RawTx); err != nil {
+		return NewErrorResponse(err)
+	}
+
+	log.WithField("tx_id", ins.RawTx.ID.String()).Info("claim script tx")
 	return NewSuccessResponse(&submitTxResp{TxID: &ins.RawTx.ID})
 }
+
+/*
+var buildControlAddressReqFmt = `
+	{"actions": [
+		{"type": "spend_account", "asset_id": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", "amount":%s, "account_id": "%s"},
+		{"type": "spend_account", "asset_id": "%s","amount": %s,"account_id": "%s"},
+		{"type": "control_address", "asset_id": "%s", "amount": %s,"address": "%s"}
+	]}`
+*/
