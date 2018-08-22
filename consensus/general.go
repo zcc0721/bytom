@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"strings"
 
+	"github.com/bytom/crypto/ed25519/chainkd"
 	"github.com/bytom/protocol/bc"
 )
 
@@ -89,12 +90,13 @@ type Checkpoint struct {
 // Params store the config for different network
 type Params struct {
 	// Name defines a human-readable identifier for the network.
-	Name            string
-	Bech32HRPSegwit string
-	Checkpoints     []Checkpoint
-	FedpegScript    string
-	SignBlockScript string
-	PeginMinDepth   uint8
+	Name                   string
+	Bech32HRPSegwit        string
+	Checkpoints            []Checkpoint
+	FedpegXPubs            []chainkd.XPub
+	SignBlockScript        string
+	PeginMinDepth          uint8
+	ParentGenesisBlockHash string
 }
 
 // ActiveNetParams is ...

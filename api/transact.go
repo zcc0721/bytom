@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 	"time"
 
@@ -428,12 +429,31 @@ func (a *API) claimPeginTx(ctx context.Context, ins struct {
 		return NewErrorResponse(err)
 	}
 	// todo把一些主链的信息加到交易的stack中
+	var stack [][]byte
+
+	//amount
+	amount := strconv.FormatUint(ins.RawTx.Outputs[nOut].Amount, 10)
+	stack = append(stack, []byte(amount))
+	// 主链的gennesisBlockHash
+	stack = append(stack, []byte(consensus.ActiveNetParams.ParentGenesisBlockHash))
+	// claim script
+	stack = append(stack, []byte(ins.ClaimScript))
+	// raw tx
+	tx, _ := json.Marshal(ins.RawTx)
+	stack = append(stack, tx)
+	// proof
+	stack = append(stack, []byte(ins.TxOutProof))
+
+	tmpl.Transaction.Inputs[0].Peginwitness = stack
+
+	tmpl.Transaction.Inputs[0].IsPegin = true
 
 	// 交易签名
 	if err := txbuilder.Sign(ctx, tmpl, ins.Password, a.PseudohsmSignTemplate); err != nil {
 		log.WithField("build err", err).Error("fail on sign transaction.")
 		return NewErrorResponse(err)
 	}
+
 	// submit
 	if err := txbuilder.FinalizeTx(ctx, a.chain, &ins.RawTx); err != nil {
 		return NewErrorResponse(err)

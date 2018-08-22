@@ -109,13 +109,6 @@ func NewNode(config *cfg.Config) *Node {
 	if !config.Wallet.Disable {
 		walletDB := dbm.NewDB("wallet", config.DBBackend, config.DBDir())
 		accounts = account.NewManager(walletDB, chain)
-		var federationRedeemXPubs []chainkd.XPub
-		for _, xpubStr := range strings.Split(config.Side.FedpegXPubs, ",") {
-			var xpub chainkd.XPub
-			copy(xpub[:], []byte(xpubStr)[:64])
-			federationRedeemXPubs = append(federationRedeemXPubs, xpub)
-		}
-		accounts.SetFederationRedeemXPubs(federationRedeemXPubs)
 		assets = asset.NewRegistry(walletDB, chain)
 		wallet, err = w.NewWallet(walletDB, accounts, assets, hsm, chain)
 		if err != nil {
@@ -212,6 +205,16 @@ func initActiveNetParams(config *cfg.Config) {
 	if !exist {
 		cmn.Exit(cmn.Fmt("chain_id[%v] don't exist", config.ChainID))
 	}
+	var federationRedeemXPubs []chainkd.XPub
+	for _, xpubStr := range strings.Split(config.Side.FedpegXPubs, ",") {
+		var xpub chainkd.XPub
+		copy(xpub[:], []byte(xpubStr)[:64])
+		federationRedeemXPubs = append(federationRedeemXPubs, xpub)
+	}
+	consensus.ActiveNetParams.FedpegXPubs = federationRedeemXPubs
+	consensus.ActiveNetParams.SignBlockScript = config.Side.SignBlockScript
+	consensus.ActiveNetParams.PeginMinDepth = config.Side.PeginMinDepth
+	consensus.ActiveNetParams.ParentGenesisBlockHash = ""
 }
 
 func initLogFile(config *cfg.Config) {
