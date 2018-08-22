@@ -416,7 +416,11 @@ func (a *API) claimPeginTx(ctx context.Context, ins struct {
 	// 输出
 	act["type"] = "control_address"
 	act["amount"] = ins.RawTx.Outputs[nOut].Amount
-	act["address"] = ""
+	program, err := a.wallet.AccountMgr.CreateAddress(cp.AccountID, false)
+	if err != nil {
+		return NewErrorResponse(err)
+	}
+	act["address"] = program.Address
 	delete(act, "account_id")
 	buildReqs.Actions = append(buildReqs.Actions, act)
 	tmpl, err := a.buildSingle(ctx, buildReqs)
@@ -438,12 +442,3 @@ func (a *API) claimPeginTx(ctx context.Context, ins struct {
 	log.WithField("tx_id", ins.RawTx.ID.String()).Info("claim script tx")
 	return NewSuccessResponse(&submitTxResp{TxID: &ins.RawTx.ID})
 }
-
-/*
-var buildControlAddressReqFmt = `
-	{"actions": [
-		{"type": "spend_account", "asset_id": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", "amount":%s, "account_id": "%s"},
-		{"type": "spend_account", "asset_id": "%s","amount": %s,"account_id": "%s"},
-		{"type": "control_address", "asset_id": "%s", "amount": %s,"address": "%s"}
-	]}`
-*/
