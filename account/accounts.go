@@ -107,9 +107,8 @@ type Manager struct {
 	delayedACPsMu sync.Mutex
 	delayedACPs   map[*txbuilder.TemplateBuilder][]*CtrlProgram
 
-	accIndexMu            sync.Mutex
-	accountMu             sync.Mutex
-	federationRedeemXPubs []chainkd.XPub
+	accIndexMu sync.Mutex
+	accountMu  sync.Mutex
 }
 
 // NewManager creates a new account manager
@@ -177,15 +176,11 @@ func (m *Manager) CreateAddress(accountID string, change bool) (cp *CtrlProgram,
 	return m.createAddress(account, change)
 }
 
-func (m *Manager) SetFederationRedeemXPubs(federationRedeemXPubs []chainkd.XPub) {
-	m.federationRedeemXPubs = federationRedeemXPubs
-}
-
 func (m *Manager) CreatePeginAddress(accountID string, change bool) (string, string, error) {
 	// 通过配置获取
 	claimCtrlProg, _ := m.CreateAddress(accountID, change)
 	claimScript := claimCtrlProg.ControlProgram
-	federationRedeemScript := vmutil.CalculateContract(m.federationRedeemXPubs, claimScript)
+	federationRedeemScript := vmutil.CalculateContract(consensus.ActiveNetParams.FedpegXPubs, claimScript)
 
 	scriptHash := crypto.Sha256(federationRedeemScript)
 
@@ -199,7 +194,7 @@ func (m *Manager) CreatePeginAddress(accountID string, change bool) (string, str
 }
 
 func (m *Manager) GetPeginControlPrograms(claimScript []byte) (string, []byte) {
-	federationRedeemScript := vmutil.CalculateContract(m.federationRedeemXPubs, claimScript)
+	federationRedeemScript := vmutil.CalculateContract(consensus.ActiveNetParams.FedpegXPubs, claimScript)
 	scriptHash := crypto.Sha256(federationRedeemScript)
 
 	address, err := common.NewAddressWitnessScriptHash(scriptHash, &consensus.ActiveNetParams)
