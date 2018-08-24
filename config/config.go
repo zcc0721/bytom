@@ -139,7 +139,7 @@ func DefaultP2PConfig() *P2PConfig {
 		AddrBook:         "addrbook.json",
 		AddrBookStrict:   true,
 		SkipUPNP:         false,
-		MaxNumPeers:      10,
+		MaxNumPeers:      20,
 		HandshakeTimeout: 30,
 		DialTimeout:      3,
 		PexReactor:       true,
