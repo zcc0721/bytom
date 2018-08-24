@@ -90,21 +90,23 @@ out:
 			log.Errorf("Mining: failed on create NewBlockTemplate: %v", err)
 			continue
 		}
+		// todo
+		/*
+			if m.solveBlock(block, ticker, quit) {
+				if isOrphan, err := m.chain.ProcessBlock(block); err == nil {
+					log.WithFields(log.Fields{
+						"height":   block.BlockHeader.Height,
+						"isOrphan": isOrphan,
+						"tx":       len(block.Transactions),
+					}).Info("Miner processed block")
 
-		if m.solveBlock(block, ticker, quit) {
-			if isOrphan, err := m.chain.ProcessBlock(block); err == nil {
-				log.WithFields(log.Fields{
-					"height":   block.BlockHeader.Height,
-					"isOrphan": isOrphan,
-					"tx":       len(block.Transactions),
-				}).Info("Miner processed block")
-
-				blockHash := block.Hash()
-				m.newBlockCh <- &blockHash
-			} else {
-				log.WithField("height", block.BlockHeader.Height).Errorf("Miner fail on ProcessBlock, %v", err)
+					blockHash := block.Hash()
+					m.newBlockCh <- &blockHash
+				} else {
+					log.WithField("height", block.BlockHeader.Height).Errorf("Miner fail on ProcessBlock, %v", err)
+				}
 			}
-		}
+		*/
 	}
 
 	m.workerWg.Done()
