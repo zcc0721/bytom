@@ -359,6 +359,8 @@ func (a *API) claimPeginTx(ctx context.Context, ins struct {
 }) Response {
 	// raw transaction
 	// proof验证
+	// 增加spv验证以及连接主链api查询交易的确认数
+
 	// 找出与claim script有关联的交易的输出
 	var address string
 	var controlProg []byte

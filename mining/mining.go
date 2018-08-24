@@ -23,7 +23,7 @@ import (
 // based on the passed block height to the provided address.  When the address
 // is nil, the coinbase transaction will instead be redeemable by anyone.
 func createCoinbaseTx(accountManager *account.Manager, amount uint64, blockHeight uint64) (tx *types.Tx, err error) {
-	amount += consensus.BlockSubsidy(blockHeight)
+	//amount += consensus.BlockSubsidy(blockHeight)
 	arbitrary := append([]byte{0x00}, []byte(strconv.FormatUint(blockHeight, 10))...)
 
 	var script []byte
@@ -81,10 +81,10 @@ func NewBlockTemplate(c *protocol.Chain, txPool *protocol.TxPool, accountManager
 	preBlockHeader := c.BestBlockHeader()
 	preBlockHash := preBlockHeader.Hash()
 	nextBlockHeight := preBlockHeader.Height + 1
-	nextBits, err := c.CalcNextBits(&preBlockHash)
-	if err != nil {
-		return nil, err
-	}
+	//nextBits, err := c.CalcNextBits(&preBlockHash)
+	//if err != nil {
+	//	return nil, err
+	//}
 
 	b = &types.Block{
 		BlockHeader: types.BlockHeader{
@@ -93,7 +93,6 @@ func NewBlockTemplate(c *protocol.Chain, txPool *protocol.TxPool, accountManager
 			PreviousBlockHash: preBlockHash,
 			Timestamp:         uint64(time.Now().Unix()),
 			BlockCommitment:   types.BlockCommitment{},
-			Bits:              nextBits,
 		},
 	}
 	bcBlock := &bc.Block{BlockHeader: &bc.BlockHeader{Height: nextBlockHeight}}

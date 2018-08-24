@@ -19,7 +19,7 @@ func (bh *BlockHeader) writeForHash(w io.Writer) {
 
 // NewBlockHeader creates a new BlockHeader and populates
 // its body.
-func NewBlockHeader(version, height uint64, previousBlockID *Hash, timestamp uint64, transactionsRoot, transactionStatusHash *Hash, nonce, bits uint64) *BlockHeader {
+func NewBlockHeader(version, height uint64, previousBlockID *Hash, timestamp uint64, transactionsRoot, transactionStatusHash *Hash) *BlockHeader {
 	return &BlockHeader{
 		Version:               version,
 		Height:                height,
@@ -28,7 +28,5 @@ func NewBlockHeader(version, height uint64, previousBlockID *Hash, timestamp uin
 		TransactionsRoot:      transactionsRoot,
 		TransactionStatusHash: transactionStatusHash,
 		TransactionStatus:     nil,
-		Bits:                  bits,
-		Nonce:                 nonce,
 	}
 }

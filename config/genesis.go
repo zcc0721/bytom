@@ -1,25 +1,48 @@
 package config
 
 import (
+	"crypto/sha256"
 	"encoding/hex"
 
 	log "github.com/sirupsen/logrus"
 
 	"github.com/bytom/consensus"
+	"github.com/bytom/crypto/ed25519"
 	"github.com/bytom/protocol/bc"
 	"github.com/bytom/protocol/bc/types"
+	"github.com/bytom/protocol/vm/vmutil"
 )
 
+func commitToArguments() (res *[32]byte) {
+	var pubkeys []ed25519.PublicKey
+	for _, xpub := range consensus.ActiveNetParams.FedpegXPubs {
+		pubkeys = append(pubkeys, xpub.PublicKey())
+	}
+	fedpegScript, _ := vmutil.P2SPMultiSigProgram(pubkeys, len(pubkeys))
+
+	hasher := sha256.New()
+	hasher.Write(fedpegScript)
+	hasher.Write([]byte(consensus.ActiveNetParams.SignBlockScript))
+	resSlice := hasher.Sum(nil)
+	res = new([32]byte)
+	copy(res[:], resSlice)
+	return
+}
+
 func genesisTx() *types.Tx {
+
 	contract, err := hex.DecodeString("00148c9d063ff74ee6d9ffa88d83aeb038068366c4c4")
 	if err != nil {
 		log.Panicf("fail on decode genesis tx output control program")
 	}
 
+	coinbaseInput := commitToArguments()
 	txData := types.TxData{
 		Version: 1,
 		Inputs: []*types.TxInput{
-			types.NewCoinbaseInput([]byte("Information is power. -- Jan/11/2013. Computing is power. -- Apr/24/2018.")),
+			// Any consensus-related values that are command-line set can be added here for anti-footgun
+			types.NewCoinbaseInput(coinbaseInput[:]),
+			//types.NewCoinbaseInput([]byte("Information is power. -- Jan/11/2013. Computing is power. -- Apr/24/2018.")),
 		},
 		Outputs: []*types.TxOutput{
 			types.NewTxOutput(*consensus.BTMAssetID, consensus.InitialBlockSubsidy, contract),
@@ -48,9 +71,7 @@ func mainNetGenesisBlock() *types.Block {
 		BlockHeader: types.BlockHeader{
 			Version:   1,
 			Height:    0,
-			Nonce:     9253507043297,
 			Timestamp: 1524549600,
-			Bits:      2161727821137910632,
 			BlockCommitment: types.BlockCommitment{
 				TransactionsMerkleRoot: merkleRoot,
 				TransactionStatusHash:  txStatusHash,
@@ -81,9 +102,7 @@ func testNetGenesisBlock() *types.Block {
 		BlockHeader: types.BlockHeader{
 			Version:   1,
 			Height:    0,
-			Nonce:     9253507043297,
 			Timestamp: 1528945000,
-			Bits:      2305843009214532812,
 			BlockCommitment: types.BlockCommitment{
 				TransactionsMerkleRoot: merkleRoot,
 				TransactionStatusHash:  txStatusHash,
@@ -114,9 +133,7 @@ func soloNetGenesisBlock() *types.Block {
 		BlockHeader: types.BlockHeader{
 			Version:   1,
 			Height:    0,
-			Nonce:     9253507043297,
 			Timestamp: 1528945000,
-			Bits:      2305843009214532812,
 			BlockCommitment: types.BlockCommitment{
 				TransactionsMerkleRoot: merkleRoot,
 				TransactionStatusHash:  txStatusHash,
