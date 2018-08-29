@@ -430,35 +430,23 @@ func (a *API) createrawpegin(ctx context.Context, ins struct {
 	// 构造交易
 	// 用输出作为交易输入 生成新的交易
 	builder := txbuilder.NewBuilder(time.Now())
-	// TODO 手续费怎么处理
-	/*
-		// 增加手续费 spend
-		txInput := types.NewSpendInput(nil, bc.Hash{}, *ins.RawTx.Outputs[nOut].AssetId, 0, 0, cp.ControlProgram)
-		if err = builder.AddInput(txInput, &txbuilder.SigningInstruction{}); err != nil {
-			return NewErrorResponse(err)
-		}
-	*/
 	// TODO 根据raw tx生成一个utxo
 	//txInput := types.NewClaimInputInput(nil, *ins.RawTx.Outputs[nOut].AssetId, ins.RawTx.Outputs[nOut].Amount, cp.ControlProgram)
-	txInput := types.NewClaimInputInput(nil, ins.RawTx.ID, *ins.RawTx.Outputs[nOut].AssetId, ins.RawTx.Outputs[nOut].Amount, 0, cp.ControlProgram)
+	txInput := types.NewClaimInputInput(nil, ins.RawTx.ID, *ins.RawTx.Outputs[nOut].AssetId, ins.RawTx.Outputs[nOut].Amount, uint64(nOut), cp.ControlProgram)
 	if err := builder.AddInput(txInput, &txbuilder.SigningInstruction{}); err != nil {
-		//return NewErrorResponse(err)
 		return nil
 	}
 	program, err := a.wallet.AccountMgr.CreateAddress(cp.AccountID, false)
 	if err != nil {
-		//return NewErrorResponse(err)
 		return nil
 	}
 	outputAccount := ins.RawTx.Outputs[nOut].Amount
 	if err = builder.AddOutput(types.NewTxOutput(*ins.RawTx.Outputs[nOut].AssetId, outputAccount, program.ControlProgram)); err != nil {
-		//return NewErrorResponse(err)
 		return nil
 	}
 
 	tmpl, txData, err := builder.Build()
 	if err != nil {
-		//return NewErrorResponse(err)
 		return nil
 	}
 
