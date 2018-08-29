@@ -34,7 +34,8 @@ func MapTx(oldTx *TxData) *bc.Tx {
 
 		case *bc.Coinbase:
 			ord = 0
-
+		case *bc.Claim:
+			ord = 0
 		default:
 			continue
 		}
@@ -63,6 +64,7 @@ func mapTx(tx *TxData) (headerID bc.Hash, hdr *bc.TxHeader, entryMap map[bc.Hash
 		spends    []*bc.Spend
 		issuances []*bc.Issuance
 		coinbase  *bc.Coinbase
+		claim     *bc.Claim
 	)
 
 	muxSources := make([]*bc.ValueSource, len(tx.Inputs))
@@ -120,6 +122,15 @@ func mapTx(tx *TxData) (headerID bc.Hash, hdr *bc.TxHeader, entryMap map[bc.Hash
 				Ref:   &coinbaseID,
 				Value: &out.AssetAmount,
 			}
+		case *ClaimInput:
+			prog := &bc.Program{VmVersion: inp.VMVersion, Code: inp.ControlProgram}
+			claim = bc.NewClaim(prog, uint64(i), input.Peginwitness)
+			claim.WitnessArguments = inp.Arguments
+			claimID := addEntry(claim)
+			muxSources[i] = &bc.ValueSource{
+				Ref:   &claimID,
+				Value: &inp.AssetAmount,
+			}
 		}
 	}
 
@@ -137,6 +148,10 @@ func mapTx(tx *TxData) (headerID bc.Hash, hdr *bc.TxHeader, entryMap map[bc.Hash
 
 	if coinbase != nil {
 		coinbase.SetDestination(&muxID, mux.Sources[0].Value, 0)
+	}
+
+	if claim != nil {
+		claim.SetDestination(&muxID, mux.Sources[0].Value, 0)
 	}
 
 	// convert types.outputs to the bc.output

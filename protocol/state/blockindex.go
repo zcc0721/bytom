@@ -40,14 +40,14 @@ func NewBlockNode(bh *types.BlockHeader, parent *BlockNode) (*BlockNode, error) 
 	}
 
 	node := &BlockNode{
-		Parent:    parent,
-		Hash:      bh.Hash(),
-		WorkSum:   difficulty.CalcWork(bh.Bits),
+		Parent: parent,
+		Hash:   bh.Hash(),
+		//WorkSum:   difficulty.CalcWork(bh.Bits),
 		Version:   bh.Version,
 		Height:    bh.Height,
 		Timestamp: bh.Timestamp,
-		Nonce:     bh.Nonce,
-		Bits:      bh.Bits,
+		//Nonce:     bh.Nonce,
+		//Bits:      bh.Bits,
 		TransactionsMerkleRoot: bh.TransactionsMerkleRoot,
 		TransactionStatusHash:  bh.TransactionStatusHash,
 	}
@@ -72,8 +72,8 @@ func (node *BlockNode) BlockHeader() *types.BlockHeader {
 		Height:            node.Height,
 		PreviousBlockHash: previousBlockHash,
 		Timestamp:         node.Timestamp,
-		Nonce:             node.Nonce,
-		Bits:              node.Bits,
+		//Nonce:             node.Nonce,
+		//Bits:              node.Bits,
 		BlockCommitment: types.BlockCommitment{
 			TransactionsMerkleRoot: node.TransactionsMerkleRoot,
 			TransactionStatusHash:  node.TransactionStatusHash,

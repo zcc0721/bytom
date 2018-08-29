@@ -114,3 +114,11 @@ message Spend {
   repeated bytes   witness_arguments   = 3;
   uint64           ordinal             = 4;
 }
+
+message Claim {
+  ValueDestination    witness_destination = 1;
+  Program             ControlProgram =2;
+  repeated bytes      witness_arguments = 3;
+  repeated  bytes     Peginwitness = 4;
+  uint64              ordinal  = 5;
+}

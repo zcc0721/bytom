@@ -14,13 +14,13 @@ const (
 	IssuanceInputType uint8 = iota
 	SpendInputType
 	CoinbaseInputType
+	ClainPegin
 )
 
 type (
 	// TxInput is the top level struct of tx input.
 	TxInput struct {
 		AssetVersion uint64
-		IsPegin      bool
 		TypedInput
 		CommitmentSuffix []byte
 		WitnessSuffix    []byte

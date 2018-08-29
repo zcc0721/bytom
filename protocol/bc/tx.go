@@ -5,8 +5,8 @@ import (
 	"github.com/bytom/errors"
 )
 
-// Tx is a wrapper for the entries-based representation of a transaction.
 type Tx struct {
+// Tx is a wrapper for the entries-based representation of a transaction.
 	*TxHeader
 	ID       Hash
 	Entries  map[Hash]Entry
