@@ -379,3 +379,66 @@ func (m *Manager) insertControlProgramDelayed(b *txbuilder.TemplateBuilder, acp 
 		return m.insertControlPrograms(acps...)
 	})
 }
+
+//DecodeClaimPeginAction unmarshal JSON-encoded data of spend action
+func (m *Manager) DecodeClaimPeginAction(data []byte) (txbuilder.Action, error) {
+	a := &spendAction{accounts: m}
+	return a, json.Unmarshal(data, a)
+}
+
+type claimPeginAction struct {
+	accounts *Manager
+	bc.AssetAmount
+	AccountID      string `json:"account_id"`
+	UseUnconfirmed bool   `json:"use_unconfirmed"`
+}
+
+func (a *claimPeginAction) Build(ctx context.Context, b *txbuilder.TemplateBuilder) error {
+	var missing []string
+	if a.AccountID == "" {
+		missing = append(missing, "account_id")
+	}
+	if a.AssetId.IsZero() {
+		missing = append(missing, "asset_id")
+	}
+	if len(missing) > 0 {
+		return txbuilder.MissingFieldsError(missing...)
+	}
+
+	acct, err := a.accounts.FindByID(a.AccountID)
+	if err != nil {
+		return errors.Wrap(err, "get account info")
+	}
+
+	res, err := a.accounts.utxoKeeper.Reserve(a.AccountID, a.AssetId, a.Amount, a.UseUnconfirmed, b.MaxTime())
+	if err != nil {
+		return errors.Wrap(err, "reserving utxos")
+	}
+
+	// Cancel the reservation if the build gets rolled back.
+	b.OnRollback(func() { a.accounts.utxoKeeper.Cancel(res.id) })
+	for _, r := range res.utxos {
+		txInput, sigInst, err := UtxoToInputs(acct.Signer, r)
+		if err != nil {
+			return errors.Wrap(err, "creating inputs")
+		}
+
+		if err = b.AddInput(txInput, sigInst); err != nil {
+			return errors.Wrap(err, "adding inputs")
+		}
+	}
+
+	if res.change > 0 {
+		acp, err := a.accounts.CreateAddress(a.AccountID, true)
+		if err != nil {
+			return errors.Wrap(err, "creating control program")
+		}
+
+		// Don't insert the control program until callbacks are executed.
+		a.accounts.insertControlProgramDelayed(b, acp)
+		if err = b.AddOutput(types.NewTxOutput(*a.AssetId, res.change, acp.ControlProgram)); err != nil {
+			return errors.Wrap(err, "adding change output")
+		}
+	}
+	return nil
+}

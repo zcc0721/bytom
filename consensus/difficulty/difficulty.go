@@ -3,7 +3,6 @@ package difficulty
 import (
 	"math/big"
 
-	"github.com/bytom/consensus"
 	"github.com/bytom/mining/tensority"
 	"github.com/bytom/protocol/bc"
 	"github.com/bytom/protocol/bc/types"
@@ -126,17 +125,20 @@ func CheckProofOfWork(hash, seed *bc.Hash, bits uint64) bool {
 // for next block, when a lower difficulty Int actually reflects a more difficult
 // mining progress.
 func CalcNextRequiredDifficulty(lastBH, compareBH *types.BlockHeader) uint64 {
-	if (lastBH.Height)%consensus.BlocksPerRetarget != 0 || lastBH.Height == 0 {
-		return lastBH.Bits
-	}
+	/*
+		if (lastBH.Height)%consensus.BlocksPerRetarget != 0 || lastBH.Height == 0 {
+			return lastBH.Bits
+		}
 
-	targetTimeSpan := int64(consensus.BlocksPerRetarget * consensus.TargetSecondsPerBlock)
-	actualTimeSpan := int64(lastBH.Timestamp - compareBH.Timestamp)
+		targetTimeSpan := int64(consensus.BlocksPerRetarget * consensus.TargetSecondsPerBlock)
+		actualTimeSpan := int64(lastBH.Timestamp - compareBH.Timestamp)
 
-	oldTarget := CompactToBig(lastBH.Bits)
-	newTarget := new(big.Int).Mul(oldTarget, big.NewInt(actualTimeSpan))
-	newTarget.Div(newTarget, big.NewInt(targetTimeSpan))
-	newTargetBits := BigToCompact(newTarget)
+		oldTarget := CompactToBig(lastBH.Bits)
+		newTarget := new(big.Int).Mul(oldTarget, big.NewInt(actualTimeSpan))
+		newTarget.Div(newTarget, big.NewInt(targetTimeSpan))
+		newTargetBits := BigToCompact(newTarget)
 
-	return newTargetBits
+		return newTargetBits
+	*/
+	return 0
 }

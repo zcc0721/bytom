@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"math"
 	"strconv"
 	"strings"
@@ -357,6 +356,30 @@ func (a *API) claimPeginTx(ctx context.Context, ins struct {
 	TxOutProof  string   `json:"tx_out_proof"`
 	ClaimScript string   `json:"claim_script"`
 }) Response {
+
+	tmpl := a.createrawpegin(ins)
+
+	// 交易签名
+	if err := txbuilder.Sign(ctx, tmpl, ins.Password, a.PseudohsmSignTemplate); err != nil {
+		log.WithField("build err", err).Error("fail on sign transaction.")
+		return NewErrorResponse(err)
+	}
+
+	// submit
+	if err := txbuilder.FinalizeTx(ctx, a.chain, &ins.RawTx); err != nil {
+		return NewErrorResponse(err)
+	}
+
+	log.WithField("tx_id", ins.RawTx.ID.String()).Info("claim script tx")
+	return NewSuccessResponse(&submitTxResp{TxID: &ins.RawTx.ID})
+}
+
+func (a *API) createrawpegin(ctx context.Context, ins struct {
+	Password    string   `json:"password"`
+	RawTx       types.Tx `json:"raw_transaction"`
+	TxOutProof  string   `json:"tx_out_proof"`
+	ClaimScript string   `json:"claim_script"`
+}) *txbuilder.Template {
 	// raw transaction
 	// proof验证
 	// 增加spv验证以及连接主链api查询交易的确认数
@@ -388,10 +411,8 @@ func (a *API) claimPeginTx(ctx context.Context, ins struct {
 	if nOut == len(ins.RawTx.Outputs) {
 		return NewErrorResponse(errors.New("Failed to find output in bytom to the mainchain_address from getpeginaddress"))
 	}
-	fmt.Println(address, controlProg, nOut)
 
 	// 根据ClaimScript 获取account id
-
 	var hash [32]byte
 	sha3pool.Sum256(hash[:], []byte(ins.ClaimScript))
 	data := a.wallet.DB.Get(account.ContractKey(hash))
@@ -403,33 +424,28 @@ func (a *API) claimPeginTx(ctx context.Context, ins struct {
 	if err := json.Unmarshal(data, cp); err != nil {
 		return NewErrorResponse(errors.New("Failed on unmarshal control program"))
 	}
+
 	// 构造交易
 	// 用输出作为交易输入 生成新的交易
-	buildReqs := &BuildRequest{}
-	act := make(map[string]interface{})
-	// gas
-	act["type"] = "spend_account"
-	act["asset_id"] = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
-	act["amount"] = 0
-	act["account_id"] = cp.AccountID
-	buildReqs.Actions = append(buildReqs.Actions, act)
-	// 输入
-	act["amount"] = ins.RawTx.Outputs[nOut].Amount
-	buildReqs.Actions = append(buildReqs.Actions, act)
-	// 输出
-	act["type"] = "control_address"
-	act["amount"] = ins.RawTx.Outputs[nOut].Amount
+	builder := txbuilder.NewBuilder(time.Now())
+	txInput := types.NewClaimInputInput(nil, *ins.RawTx.Outputs[nOut].AssetId, ins.RawTx.Outputs[nOut].Amount, cp.ControlProgram)
+	if err = builder.AddInput(txInput, &txbuilder.SigningInstruction{}); err != nil {
+		return NewErrorResponse(err)
+	}
 	program, err := a.wallet.AccountMgr.CreateAddress(cp.AccountID, false)
 	if err != nil {
 		return NewErrorResponse(err)
 	}
-	act["address"] = program.Address
-	delete(act, "account_id")
-	buildReqs.Actions = append(buildReqs.Actions, act)
-	tmpl, err := a.buildSingle(ctx, buildReqs)
+	outputAccount := ins.RawTx.Outputs[nOut].Amount
+	if err = builder.AddOutput(types.NewTxOutput(*ins.RawTx.Outputs[nOut].AssetId, outputAccount, program)); err != nil {
+		return NewErrorResponse(err)
+	}
+
+	tmpl, txData, err := builder.Build()
 	if err != nil {
 		return NewErrorResponse(err)
 	}
+
 	// todo把一些主链的信息加到交易的stack中
 	var stack [][]byte
 
@@ -447,20 +463,15 @@ func (a *API) claimPeginTx(ctx context.Context, ins struct {
 	stack = append(stack, []byte(ins.TxOutProof))
 
 	tmpl.Transaction.Inputs[0].Peginwitness = stack
+	txData.Inputs[0].Peginwitness = stack
 
-	tmpl.Transaction.Inputs[0].IsPegin = true
-
-	// 交易签名
-	if err := txbuilder.Sign(ctx, tmpl, ins.Password, a.PseudohsmSignTemplate); err != nil {
-		log.WithField("build err", err).Error("fail on sign transaction.")
+	//交易费估算
+	txGasResp, err := EstimateTxGas(*tmpl)
+	if err != nil {
 		return NewErrorResponse(err)
 	}
-
-	// submit
-	if err := txbuilder.FinalizeTx(ctx, a.chain, &ins.RawTx); err != nil {
-		return NewErrorResponse(err)
-	}
-
-	log.WithField("tx_id", ins.RawTx.ID.String()).Info("claim script tx")
-	return NewSuccessResponse(&submitTxResp{TxID: &ins.RawTx.ID})
+	tmpl.Transaction.Outputs[0].Amount = tmpl.Transaction.Outputs[0].Amount - txGasResp.TotalNeu
+	//重设置Transaction
+	tpl.Transaction = types.NewTx(*tx)
+	return tmpl
 }

@@ -302,7 +302,8 @@ func checkValid(vs *validationState, e bc.Entry) (err error) {
 
 		// special case for coinbase transaction, it's valid unit all the verify has been passed
 		vs.gasStatus.GasValid = true
-
+	case *bc.Claim:
+		// 对交易的合法性进行验证
 	default:
 		return fmt.Errorf("entry has unexpected type %T", e)
 	}
