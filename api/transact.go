@@ -357,7 +357,7 @@ func (a *API) claimPeginTx(ctx context.Context, ins struct {
 	ClaimScript string   `json:"claim_script"`
 }) Response {
 
-	tmpl := a.createrawpegin(ins)
+	tmpl := a.createrawpegin(ctx, ins)
 
 	// 交易签名
 	if err := txbuilder.Sign(ctx, tmpl, ins.Password, a.PseudohsmSignTemplate); err != nil {
@@ -385,18 +385,17 @@ func (a *API) createrawpegin(ctx context.Context, ins struct {
 	// 增加spv验证以及连接主链api查询交易的确认数
 
 	// 找出与claim script有关联的交易的输出
-	var address string
 	var controlProg []byte
 	nOut := len(ins.RawTx.Outputs)
 	if ins.ClaimScript == "" {
 		// 遍历寻找与交易输出有关的claim script
 		cps, err := a.wallet.AccountMgr.ListControlProgram()
 		if err != nil {
-			return NewErrorResponse(err)
+			return nil
 		}
 
 		for _, cp := range cps {
-			address, controlProg = a.wallet.AccountMgr.GetPeginControlPrograms(cp.ControlProgram)
+			_, controlProg = a.wallet.AccountMgr.GetPeginControlPrograms(cp.ControlProgram)
 			if controlProg == nil {
 				continue
 			}
@@ -404,12 +403,13 @@ func (a *API) createrawpegin(ctx context.Context, ins struct {
 			nOut = getPeginTxnOutputIndex(ins.RawTx, controlProg)
 		}
 	} else {
-		address, controlProg = a.wallet.AccountMgr.GetPeginControlPrograms([]byte(ins.ClaimScript))
+		_, controlProg = a.wallet.AccountMgr.GetPeginControlPrograms([]byte(ins.ClaimScript))
 		// 获取交易的输出
 		nOut = getPeginTxnOutputIndex(ins.RawTx, controlProg)
 	}
 	if nOut == len(ins.RawTx.Outputs) {
-		return NewErrorResponse(errors.New("Failed to find output in bytom to the mainchain_address from getpeginaddress"))
+		//return NewErrorResponse(errors.New("Failed to find output in bytom to the mainchain_address from getpeginaddress"))
+		return nil
 	}
 
 	// 根据ClaimScript 获取account id
@@ -417,33 +417,49 @@ func (a *API) createrawpegin(ctx context.Context, ins struct {
 	sha3pool.Sum256(hash[:], []byte(ins.ClaimScript))
 	data := a.wallet.DB.Get(account.ContractKey(hash))
 	if data == nil {
-		return NewErrorResponse(errors.New("Failed to find control program through claim script"))
+		//return NewErrorResponse(errors.New("Failed to find control program through claim script"))
+		return nil
 	}
 
 	cp := &account.CtrlProgram{}
 	if err := json.Unmarshal(data, cp); err != nil {
-		return NewErrorResponse(errors.New("Failed on unmarshal control program"))
+		//return NewErrorResponse(errors.New("Failed on unmarshal control program"))
+		return nil
 	}
 
 	// 构造交易
 	// 用输出作为交易输入 生成新的交易
 	builder := txbuilder.NewBuilder(time.Now())
-	txInput := types.NewClaimInputInput(nil, *ins.RawTx.Outputs[nOut].AssetId, ins.RawTx.Outputs[nOut].Amount, cp.ControlProgram)
-	if err = builder.AddInput(txInput, &txbuilder.SigningInstruction{}); err != nil {
-		return NewErrorResponse(err)
+	// TODO 手续费怎么处理
+	/*
+		// 增加手续费 spend
+		txInput := types.NewSpendInput(nil, bc.Hash{}, *ins.RawTx.Outputs[nOut].AssetId, 0, 0, cp.ControlProgram)
+		if err = builder.AddInput(txInput, &txbuilder.SigningInstruction{}); err != nil {
+			return NewErrorResponse(err)
+		}
+	*/
+	// TODO 根据raw tx生成一个utxo
+	//txInput := types.NewClaimInputInput(nil, *ins.RawTx.Outputs[nOut].AssetId, ins.RawTx.Outputs[nOut].Amount, cp.ControlProgram)
+	txInput := types.NewClaimInputInput(nil, ins.RawTx.ID, *ins.RawTx.Outputs[nOut].AssetId, ins.RawTx.Outputs[nOut].Amount, 0, cp.ControlProgram)
+	if err := builder.AddInput(txInput, &txbuilder.SigningInstruction{}); err != nil {
+		//return NewErrorResponse(err)
+		return nil
 	}
 	program, err := a.wallet.AccountMgr.CreateAddress(cp.AccountID, false)
 	if err != nil {
-		return NewErrorResponse(err)
+		//return NewErrorResponse(err)
+		return nil
 	}
 	outputAccount := ins.RawTx.Outputs[nOut].Amount
-	if err = builder.AddOutput(types.NewTxOutput(*ins.RawTx.Outputs[nOut].AssetId, outputAccount, program)); err != nil {
-		return NewErrorResponse(err)
+	if err = builder.AddOutput(types.NewTxOutput(*ins.RawTx.Outputs[nOut].AssetId, outputAccount, program.ControlProgram)); err != nil {
+		//return NewErrorResponse(err)
+		return nil
 	}
 
 	tmpl, txData, err := builder.Build()
 	if err != nil {
-		return NewErrorResponse(err)
+		//return NewErrorResponse(err)
+		return nil
 	}
 
 	// todo把一些主链的信息加到交易的stack中
@@ -468,10 +484,11 @@ func (a *API) createrawpegin(ctx context.Context, ins struct {
 	//交易费估算
 	txGasResp, err := EstimateTxGas(*tmpl)
 	if err != nil {
-		return NewErrorResponse(err)
+		//return NewErrorResponse(err)
+		return nil
 	}
-	tmpl.Transaction.Outputs[0].Amount = tmpl.Transaction.Outputs[0].Amount - txGasResp.TotalNeu
+	txData.Outputs[0].Amount = txData.Outputs[0].Amount - uint64(txGasResp.TotalNeu)
 	//重设置Transaction
-	tpl.Transaction = types.NewTx(*tx)
+	tmpl.Transaction = types.NewTx(*txData)
 	return tmpl
 }

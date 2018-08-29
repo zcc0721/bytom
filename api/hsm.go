@@ -91,7 +91,7 @@ func (a *API) signTemplates(ctx context.Context, x struct {
 }) Response {
 	signComplete := true
 	for _, tx := range x.Txs {
-		if err := txbuilder.Sign(ctx, tx, x.Password, a.pseudohsmSignTemplate); err != nil {
+		if err := txbuilder.Sign(ctx, tx, x.Password, a.PseudohsmSignTemplate); err != nil {
 			log.WithField("build err", err).Error("fail on sign transaction.")
 			return NewErrorResponse(err)
 		}
