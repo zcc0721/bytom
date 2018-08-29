@@ -123,8 +123,17 @@ func mapTx(tx *TxData) (headerID bc.Hash, hdr *bc.TxHeader, entryMap map[bc.Hash
 				Value: &out.AssetAmount,
 			}
 		case *ClaimInput:
+			// create entry for prevout
 			prog := &bc.Program{VmVersion: inp.VMVersion, Code: inp.ControlProgram}
-			claim = bc.NewClaim(prog, uint64(i), input.Peginwitness)
+			src := &bc.ValueSource{
+				Ref:      &inp.SourceID,
+				Value:    &inp.AssetAmount,
+				Position: inp.SourcePosition,
+			}
+			prevout := bc.NewOutput(src, prog, 0) // ordinal doesn't matter for prevouts, only for result outputs
+			prevoutID := addEntry(prevout)
+
+			claim = bc.NewClaim(&prevoutID, uint64(i), input.Peginwitness)
 			claim.WitnessArguments = inp.Arguments
 			claimID := addEntry(claim)
 			muxSources[i] = &bc.ValueSource{

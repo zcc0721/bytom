@@ -16,16 +16,10 @@ func (c *Claim) SetDestination(id *Hash, val *AssetAmount, pos uint64) {
 	}
 }
 
-/*
-// NewCoinbase creates a new Coinbase.
-func NewCoinbase(arbitrary []byte) *Coinbase {
-	return &Coinbase{Arbitrary: arbitrary}
-}
-*/
-func NewClaim(controlProgram *Program, ordinal uint64, peginwitness [][]byte) *Claim {
+func NewClaim(spentOutputID *Hash, ordinal uint64, peginwitness [][]byte) *Claim {
 	return &Claim{
-		ControlProgram: controlProgram,
-		Ordinal:        ordinal,
-		Peginwitness:   peginwitness,
+		SpentOutputId: spentOutputID,
+		Ordinal:       ordinal,
+		Peginwitness:  peginwitness,
 	}
 }
