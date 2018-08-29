@@ -12,23 +12,25 @@ type ClaimCommitment struct {
 type ClaimInput struct {
 	SpendCommitmentSuffix []byte   // The unconsumed suffix of the output commitment
 	Arguments             [][]byte // Witness
-	ClaimCommitment
+	SpendCommitment
 }
 
 // NewClaimInputInput create a new SpendInput struct.
-func NewClaimInputInput(arguments [][]byte, assetID bc.AssetID, amount uint64, controlProgram []byte) *TxInput {
-	sc := ClaimCommitment{
+func NewClaimInputInput(arguments [][]byte, sourceID bc.Hash, assetID bc.AssetID, amount, sourcePos uint64, controlProgram []byte) *TxInput {
+	sc := SpendCommitment{
 		AssetAmount: bc.AssetAmount{
 			AssetId: &assetID,
 			Amount:  amount,
 		},
+		SourceID:       sourceID,
+		SourcePosition: sourcePos,
 		VMVersion:      1,
 		ControlProgram: controlProgram,
 	}
 	return &TxInput{
 		AssetVersion: 1,
 		TypedInput: &ClaimInput{
-			ClaimCommitment: sc,
+			SpendCommitment: sc,
 			Arguments:       arguments,
 		},
 	}

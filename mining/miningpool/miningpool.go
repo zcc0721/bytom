@@ -111,7 +111,7 @@ func (m *MiningPool) submitWork(bh *types.BlockHeader) error {
 		return errors.New("pending mining block has been changed")
 	}
 
-	m.block.Nonce = bh.Nonce
+	//m.block.Nonce = bh.Nonce
 	m.block.Timestamp = bh.Timestamp
 	isOrphan, err := m.chain.ProcessBlock(m.block)
 	if err != nil {

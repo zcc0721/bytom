@@ -358,7 +358,11 @@ func checkValidSrc(vstate *validationState, vs *bc.ValueSource) error {
 			return errors.Wrapf(ErrPosition, "invalid position %d for %d-destination mux source", vs.Position, len(ref.WitnessDestinations))
 		}
 		dest = ref.WitnessDestinations[vs.Position]
-
+	case *bc.Claim:
+		if vs.Position != 0 {
+			return errors.Wrapf(ErrPosition, "invalid position %d for coinbase source", vs.Position)
+		}
+		dest = ref.WitnessDestination
 	default:
 		return errors.Wrapf(bc.ErrEntryType, "value source is %T, should be coinbase, issuance, spend, or mux", e)
 	}
