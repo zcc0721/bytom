@@ -1,15 +1,21 @@
 package validation
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"math"
+	"strconv"
 
 	"github.com/bytom/consensus"
 	"github.com/bytom/consensus/segwit"
+	"github.com/bytom/crypto"
 	"github.com/bytom/errors"
 	"github.com/bytom/math/checked"
 	"github.com/bytom/protocol/bc"
+	"github.com/bytom/protocol/bc/types"
 	"github.com/bytom/protocol/vm"
+	"github.com/bytom/protocol/vm/vmutil"
 )
 
 // validate transaction error
@@ -304,11 +310,117 @@ func checkValid(vs *validationState, e bc.Entry) (err error) {
 		vs.gasStatus.GasValid = true
 	case *bc.Claim:
 		// 对交易的合法性进行验证
+		if e.SpentOutputId == nil {
+			return errors.Wrap(ErrMissingField, "spend without spent output ID")
+		}
+		spentOutput, err := vs.tx.Output(*e.SpentOutputId)
+		if err != nil {
+			return errors.Wrap(err, "getting spend prevout")
+		}
+		stack := e.GetPeginwitness()
+		if len(stack) < 5 || stack[1] == nil || spentOutput.Source == nil {
+
+			return errors.New("pegin-no-witness")
+		}
+
+		if IsValidPeginWitness(stack, *spentOutput) == nil {
+			return errors.New("PeginWitness invalid")
+		}
+
+		eq, err := spentOutput.Source.Value.Equal(e.WitnessDestination.Value)
+		if err != nil {
+			return err
+		}
+		if !eq {
+			return errors.WithDetailf(
+				ErrMismatchedValue,
+				"previous output is for %d unit(s) of %x, spend wants %d unit(s) of %x",
+				spentOutput.Source.Value.Amount,
+				spentOutput.Source.Value.AssetId.Bytes(),
+				e.WitnessDestination.Value.Amount,
+				e.WitnessDestination.Value.AssetId.Bytes(),
+			)
+		}
+
+		vs2 := *vs
+		vs2.destPos = 0
+		if err = checkValidDest(&vs2, e.WitnessDestination); err != nil {
+			return errors.Wrap(err, "checking spend destination")
+		}
+
 	default:
 		return fmt.Errorf("entry has unexpected type %T", e)
 	}
 
 	return nil
+}
+
+func IsValidPeginWitness(peginWitness [][]byte, prevout bc.Output) (err error) {
+	if len(peginWitness) != 5 {
+		return errors.New("peginWitness is error")
+	}
+	amount, err := strconv.ParseUint(string(peginWitness[0]), 10, 64)
+	if err != nil {
+		return err
+	}
+	if consensus.MoneyRange(amount) {
+		return errors.New("Amount out of range")
+	}
+
+	if len(peginWitness[1]) != 32 {
+		return errors.New("The length of gennesisBlockHash is not correct")
+	}
+
+	claimScript := peginWitness[2]
+
+	var rawTx types.Tx
+	err = json.Unmarshal(peginWitness[3], &rawTx)
+	if err != nil {
+		return err
+	}
+	txOutProof := string(peginWitness[4])
+	// TODO在txOutProof获取到交易hash
+	var txHash bc.Hash = rawTx.ID
+	// TODO做proof验证
+	// TODO对交易做proof验证
+
+	// 交易进行验证
+	checkPeginTx(&rawTx, &prevout, amount, claimScript)
+
+	// Check that the merkle proof corresponds to the txid
+	if txHash != *prevout.Source.Ref {
+		return errors.New("prevout hash don't match")
+	}
+	// Check the genesis block corresponds to a valid peg (only one for now)
+	if !bytes.Equal(peginWitness[1], []byte(consensus.ActiveNetParams.ParentGenesisBlockHash)) {
+		return errors.New("ParentGenesisBlockHash don't match")
+	}
+	// TODO Finally, validate peg-in via rpc call
+	fmt.Println(txOutProof)
+	return nil
+}
+
+func checkPeginTx(rawTx *types.Tx, prevout *bc.Output, claimAmount uint64, claimScript []byte) bool {
+	// Check that transaction matches txid
+	if rawTx.ID != *prevout.Source.Ref {
+		return false
+	}
+	// Check the transaction nout/value matches
+	amount := rawTx.Outputs[prevout.Source.Position].Amount
+	if claimAmount != amount {
+		return false
+	}
+	// Check that the witness program matches the p2ch on the p2sh-p2wsh transaction output
+	federationRedeemScript := vmutil.CalculateContract(consensus.ActiveNetParams.FedpegXPubs, claimScript)
+	scriptHash := crypto.Sha256(federationRedeemScript)
+	controlProg, err := vmutil.P2WSHProgram(scriptHash)
+	if err != nil {
+		return false
+	}
+	if bytes.Equal(rawTx.Outputs[prevout.Source.Position].ControlProgram, controlProg) {
+		return false
+	}
+	return true
 }
 
 func checkValidSrc(vstate *validationState, vs *bc.ValueSource) error {

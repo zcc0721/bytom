@@ -385,7 +385,7 @@ func (a *API) createrawpegin(ctx context.Context, ins struct {
 	// 增加spv验证以及连接主链api查询交易的确认数
 
 	// 找出与claim script有关联的交易的输出
-	var controlProg []byte
+	var claimScript []byte
 	nOut := len(ins.RawTx.Outputs)
 	if ins.ClaimScript == "" {
 		// 遍历寻找与交易输出有关的claim script
@@ -395,15 +395,19 @@ func (a *API) createrawpegin(ctx context.Context, ins struct {
 		}
 
 		for _, cp := range cps {
-			_, controlProg = a.wallet.AccountMgr.GetPeginControlPrograms(cp.ControlProgram)
+			_, controlProg := a.wallet.AccountMgr.GetPeginControlPrograms(cp.ControlProgram)
 			if controlProg == nil {
 				continue
 			}
 			// 获取交易的输出
 			nOut = getPeginTxnOutputIndex(ins.RawTx, controlProg)
+			if nOut != len(ins.RawTx.Outputs) {
+				claimScript = cp.ControlProgram
+			}
 		}
 	} else {
-		_, controlProg = a.wallet.AccountMgr.GetPeginControlPrograms([]byte(ins.ClaimScript))
+		claimScript = []byte(ins.ClaimScript)
+		_, controlProg := a.wallet.AccountMgr.GetPeginControlPrograms(claimScript)
 		// 获取交易的输出
 		nOut = getPeginTxnOutputIndex(ins.RawTx, controlProg)
 	}
@@ -414,7 +418,7 @@ func (a *API) createrawpegin(ctx context.Context, ins struct {
 
 	// 根据ClaimScript 获取account id
 	var hash [32]byte
-	sha3pool.Sum256(hash[:], []byte(ins.ClaimScript))
+	sha3pool.Sum256(hash[:], claimScript)
 	data := a.wallet.DB.Get(account.ContractKey(hash))
 	if data == nil {
 		//return NewErrorResponse(errors.New("Failed to find control program through claim script"))
@@ -459,7 +463,7 @@ func (a *API) createrawpegin(ctx context.Context, ins struct {
 	// 主链的gennesisBlockHash
 	stack = append(stack, []byte(consensus.ActiveNetParams.ParentGenesisBlockHash))
 	// claim script
-	stack = append(stack, []byte(ins.ClaimScript))
+	stack = append(stack, claimScript)
 	// raw tx
 	tx, _ := json.Marshal(ins.RawTx)
 	stack = append(stack, tx)

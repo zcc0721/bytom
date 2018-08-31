@@ -262,6 +262,9 @@ func (tp *TxPool) addTransaction(txD *TxDesc) error {
 }
 
 func (tp *TxPool) checkOrphanUtxos(tx *types.Tx) ([]*bc.Hash, error) {
+	if tx.Inputs[0].InputType() == types.ClainPegin {
+		return []*bc.Hash{}, nil
+	}
 	view := state.NewUtxoViewpoint()
 	if err := tp.store.GetTransactionsUtxo(view, []*bc.Tx{tx.Tx}); err != nil {
 		return nil, err
