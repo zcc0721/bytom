@@ -64,6 +64,13 @@ var BTMDefinitionMap = map[string]interface{}{
 	"description": `Bytom Official Issue`,
 }
 
+const (
+	Coin     = 100000000
+	MaxMoney = 2100000000 * Coin
+)
+
+func MoneyRange(nValue uint64) bool { return nValue >= 0 && nValue <= MaxMoney }
+
 // BlockSubsidy calculate the coinbase rewards on given block height
 func BlockSubsidy(height uint64) uint64 {
 	if height == 0 {
