@@ -16,6 +16,7 @@ import (
 	"github.com/bytom/protocol/bc/types"
 	"github.com/bytom/protocol/vm"
 	"github.com/bytom/protocol/vm/vmutil"
+	"github.com/bytom/util"
 )
 
 // validate transaction error
@@ -355,6 +356,14 @@ func checkValid(vs *validationState, e bc.Entry) (err error) {
 	return nil
 }
 
+type MerkleBlock struct {
+	BlockHeader  types.BlockHeader `json:"block_header"`
+	TxHashes     []*bc.Hash        `json:"tx_hashes"`
+	StatusHashes []*bc.Hash        `json:"status_hashes"`
+	Flags        []uint32          `json:"flags"`
+	MatchedTxIDs []*bc.Hash        `json:"matched_tx_ids"`
+}
+
 func IsValidPeginWitness(peginWitness [][]byte, prevout bc.Output) (err error) {
 	if len(peginWitness) != 5 {
 		return errors.New("peginWitness is error")
@@ -378,14 +387,29 @@ func IsValidPeginWitness(peginWitness [][]byte, prevout bc.Output) (err error) {
 	if err != nil {
 		return err
 	}
-	txOutProof := string(peginWitness[4])
+	var merkleBlock MerkleBlock
+	err = json.Unmarshal(peginWitness[4], &merkleBlock)
+	if err != nil {
+		return err
+	}
 	// TODO在txOutProof获取到交易hash
 	var txHash bc.Hash = rawTx.ID
 	// TODO做proof验证
 	// TODO对交易做proof验证
 
+	// proof验证
+	var flags []uint8
+	for flag := range merkleBlock.Flags {
+		flags = append(flags, uint8(flag))
+	}
+	if !types.ValidateTxMerkleTreeProof(merkleBlock.TxHashes, flags, merkleBlock.MatchedTxIDs, merkleBlock.BlockHeader.BlockCommitment.TransactionsMerkleRoot) {
+		return errors.New("Merkleblock validation failed")
+	}
+
 	// 交易进行验证
-	checkPeginTx(&rawTx, &prevout, amount, claimScript)
+	if !checkPeginTx(&rawTx, &prevout, amount, claimScript) {
+		return errors.New("check PeginTx fail")
+	}
 
 	// Check that the merkle proof corresponds to the txid
 	if txHash != *prevout.Source.Ref {
@@ -396,7 +420,13 @@ func IsValidPeginWitness(peginWitness [][]byte, prevout bc.Output) (err error) {
 		return errors.New("ParentGenesisBlockHash don't match")
 	}
 	// TODO Finally, validate peg-in via rpc call
-	fmt.Println(txOutProof)
+
+	if util.ValidatePegin {
+		if err := util.IsConfirmedBytomBlock(merkleBlock.BlockHeader.Height, consensus.ActiveNetParams.PeginMinDepth); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

@@ -21,6 +21,7 @@ import (
 	"github.com/bytom/net/http/reqid"
 	"github.com/bytom/protocol/bc"
 	"github.com/bytom/protocol/bc/types"
+	"github.com/bytom/util"
 )
 
 var (
@@ -351,14 +352,22 @@ func getPeginTxnOutputIndex(rawTx types.Tx, controlProg []byte) int {
 }
 
 func (a *API) claimPeginTx(ctx context.Context, ins struct {
-	Password    string   `json:"password"`
-	RawTx       types.Tx `json:"raw_transaction"`
-	TxOutProof  string   `json:"tx_out_proof"`
-	ClaimScript string   `json:"claim_script"`
+	Password     string            `json:"password"`
+	RawTx        types.Tx          `json:"raw_transaction"`
+	BlockHeader  types.BlockHeader `json:"block_header"`
+	TxHashes     []*bc.Hash        `json:"tx_hashes"`
+	StatusHashes []*bc.Hash        `json:"status_hashes"`
+	Flags        []uint32          `json:"flags"`
+	MatchedTxIDs []*bc.Hash        `json:"matched_tx_ids"`
+
+	ClaimScript string `json:"claim_script"`
 }) Response {
 
-	tmpl := a.createrawpegin(ctx, ins)
-
+	tmpl, err := a.createrawpegin(ctx, ins)
+	if err != nil {
+		log.WithField("build err", err).Error("fail on createrawpegin.")
+		return NewErrorResponse(err)
+	}
 	// 交易签名
 	if err := txbuilder.Sign(ctx, tmpl, ins.Password, a.PseudohsmSignTemplate); err != nil {
 		log.WithField("build err", err).Error("fail on sign transaction.")
@@ -375,15 +384,31 @@ func (a *API) claimPeginTx(ctx context.Context, ins struct {
 }
 
 func (a *API) createrawpegin(ctx context.Context, ins struct {
-	Password    string   `json:"password"`
-	RawTx       types.Tx `json:"raw_transaction"`
-	TxOutProof  string   `json:"tx_out_proof"`
-	ClaimScript string   `json:"claim_script"`
-}) *txbuilder.Template {
-	// raw transaction
+	Password     string            `json:"password"`
+	RawTx        types.Tx          `json:"raw_transaction"`
+	BlockHeader  types.BlockHeader `json:"block_header"`
+	TxHashes     []*bc.Hash        `json:"tx_hashes"`
+	StatusHashes []*bc.Hash        `json:"status_hashes"`
+	Flags        []uint32          `json:"flags"`
+	MatchedTxIDs []*bc.Hash        `json:"matched_tx_ids"`
+	ClaimScript  string            `json:"claim_script"`
+}) (*txbuilder.Template, error) {
 	// proof验证
+	var flags []uint8
+	for flag := range ins.Flags {
+		flags = append(flags, uint8(flag))
+	}
+	if !types.ValidateTxMerkleTreeProof(ins.TxHashes, flags, ins.MatchedTxIDs, ins.BlockHeader.BlockCommitment.TransactionsMerkleRoot) {
+		return nil, errors.New("Merkleblock validation failed")
+	}
+	// CheckBytomProof
+	//difficulty.CheckBytomProofOfWork(ins.BlockHeader.Hash(), ins.BlockHeader)
 	// 增加spv验证以及连接主链api查询交易的确认数
-
+	if util.ValidatePegin {
+		if err := util.IsConfirmedBytomBlock(ins.BlockHeader.Height, consensus.ActiveNetParams.PeginMinDepth); err != nil {
+			return nil, err
+		}
+	}
 	// 找出与claim script有关联的交易的输出
 	var claimScript []byte
 	nOut := len(ins.RawTx.Outputs)
@@ -391,7 +416,7 @@ func (a *API) createrawpegin(ctx context.Context, ins struct {
 		// 遍历寻找与交易输出有关的claim script
 		cps, err := a.wallet.AccountMgr.ListControlProgram()
 		if err != nil {
-			return nil
+			return nil, err
 		}
 
 		for _, cp := range cps {
@@ -412,8 +437,7 @@ func (a *API) createrawpegin(ctx context.Context, ins struct {
 		nOut = getPeginTxnOutputIndex(ins.RawTx, controlProg)
 	}
 	if nOut == len(ins.RawTx.Outputs) {
-		//return NewErrorResponse(errors.New("Failed to find output in bytom to the mainchain_address from getpeginaddress"))
-		return nil
+		return nil, errors.New("Failed to find output in bytom to the mainchain_address from getpeginaddress")
 	}
 
 	// 根据ClaimScript 获取account id
@@ -421,14 +445,12 @@ func (a *API) createrawpegin(ctx context.Context, ins struct {
 	sha3pool.Sum256(hash[:], claimScript)
 	data := a.wallet.DB.Get(account.ContractKey(hash))
 	if data == nil {
-		//return NewErrorResponse(errors.New("Failed to find control program through claim script"))
-		return nil
+		return nil, errors.New("Failed to find control program through claim script")
 	}
 
 	cp := &account.CtrlProgram{}
 	if err := json.Unmarshal(data, cp); err != nil {
-		//return NewErrorResponse(errors.New("Failed on unmarshal control program"))
-		return nil
+		return nil, errors.New("Failed on unmarshal control program")
 	}
 
 	// 构造交易
@@ -438,20 +460,20 @@ func (a *API) createrawpegin(ctx context.Context, ins struct {
 	//txInput := types.NewClaimInputInput(nil, *ins.RawTx.Outputs[nOut].AssetId, ins.RawTx.Outputs[nOut].Amount, cp.ControlProgram)
 	txInput := types.NewClaimInputInput(nil, ins.RawTx.ID, *ins.RawTx.Outputs[nOut].AssetId, ins.RawTx.Outputs[nOut].Amount, uint64(nOut), cp.ControlProgram)
 	if err := builder.AddInput(txInput, &txbuilder.SigningInstruction{}); err != nil {
-		return nil
+		return nil, err
 	}
 	program, err := a.wallet.AccountMgr.CreateAddress(cp.AccountID, false)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	outputAccount := ins.RawTx.Outputs[nOut].Amount
 	if err = builder.AddOutput(types.NewTxOutput(*ins.RawTx.Outputs[nOut].AssetId, outputAccount, program.ControlProgram)); err != nil {
-		return nil
+		return nil, err
 	}
 
 	tmpl, txData, err := builder.Build()
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
 	// todo把一些主链的信息加到交易的stack中
@@ -468,7 +490,15 @@ func (a *API) createrawpegin(ctx context.Context, ins struct {
 	tx, _ := json.Marshal(ins.RawTx)
 	stack = append(stack, tx)
 	// proof
-	stack = append(stack, []byte(ins.TxOutProof))
+	MerkleBLock := GetMerkleBlockResp{
+		BlockHeader:  ins.BlockHeader,
+		TxHashes:     ins.TxHashes,
+		StatusHashes: ins.StatusHashes,
+		Flags:        ins.Flags,
+		MatchedTxIDs: ins.MatchedTxIDs,
+	}
+	txOutProof, _ := json.Marshal(MerkleBLock)
+	stack = append(stack, txOutProof)
 
 	tmpl.Transaction.Inputs[0].Peginwitness = stack
 	txData.Inputs[0].Peginwitness = stack
@@ -476,11 +506,10 @@ func (a *API) createrawpegin(ctx context.Context, ins struct {
 	//交易费估算
 	txGasResp, err := EstimateTxGas(*tmpl)
 	if err != nil {
-		//return NewErrorResponse(err)
-		return nil
+		return nil, err
 	}
 	txData.Outputs[0].Amount = txData.Outputs[0].Amount - uint64(txGasResp.TotalNeu)
 	//重设置Transaction
 	tmpl.Transaction = types.NewTx(*txData)
-	return tmpl
+	return tmpl, nil
 }
