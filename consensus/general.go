@@ -103,7 +103,7 @@ type Params struct {
 	Checkpoints            []Checkpoint
 	FedpegXPubs            []chainkd.XPub
 	SignBlockScript        string
-	PeginMinDepth          uint8
+	PeginMinDepth          uint64
 	ParentGenesisBlockHash string
 }
 

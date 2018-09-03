@@ -33,6 +33,7 @@ import (
 	"github.com/bytom/netsync"
 	"github.com/bytom/protocol"
 	"github.com/bytom/protocol/bc"
+	"github.com/bytom/util"
 	w "github.com/bytom/wallet"
 )
 
@@ -71,7 +72,8 @@ func NewNode(config *cfg.Config) *Node {
 	initLogFile(config)
 	initActiveNetParams(config)
 	initCommonConfig(config)
-
+	util.MainchainConfig = config.MainChainRpc
+	util.ValidatePegin = config.ValidatePegin
 	// Get store
 	if config.DBBackend != "memdb" && config.DBBackend != "leveldb" {
 		cmn.Exit(cmn.Fmt("Param db_backend [%v] is invalid, use leveldb or memdb", config.DBBackend))
@@ -206,11 +208,14 @@ func initActiveNetParams(config *cfg.Config) {
 		cmn.Exit(cmn.Fmt("chain_id[%v] don't exist", config.ChainID))
 	}
 	var federationRedeemXPubs []chainkd.XPub
-	for _, xpubStr := range strings.Split(config.Side.FedpegXPubs, ",") {
-		var xpub chainkd.XPub
-		copy(xpub[:], []byte(xpubStr)[:64])
-		federationRedeemXPubs = append(federationRedeemXPubs, xpub)
+	if fedpegXPubs := strings.Split(config.Side.FedpegXPubs, ","); len(fedpegXPubs) > 0 {
+		for _, xpubStr := range fedpegXPubs {
+			var xpub chainkd.XPub
+			copy(xpub[:], []byte(xpubStr))
+			federationRedeemXPubs = append(federationRedeemXPubs, xpub)
+		}
 	}
+
 	consensus.ActiveNetParams.FedpegXPubs = federationRedeemXPubs
 	consensus.ActiveNetParams.SignBlockScript = config.Side.SignBlockScript
 	consensus.ActiveNetParams.PeginMinDepth = config.Side.PeginMinDepth
@@ -275,6 +280,7 @@ func (n *Node) OnStart() error {
 		}
 		launchWebBrowser(port)
 	}
+	// TODO 增加对连接的主链节点
 	return nil
 }
 

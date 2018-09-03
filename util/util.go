@@ -3,7 +3,6 @@ package util
 import (
 	"context"
 
-	"github.com/bytom/api"
 	"github.com/bytom/blockchain/rpc"
 	"github.com/bytom/env"
 	jww "github.com/spf13/jwalterweatherman"
@@ -36,7 +35,7 @@ func MustRPCClient() *rpc.Client {
 // Wrapper rpc call api.
 func ClientCall(path string, req ...interface{}) (interface{}, int) {
 
-	var response = &api.Response{}
+	var response = response{}
 	var request interface{}
 
 	if req != nil {
@@ -47,7 +46,7 @@ func ClientCall(path string, req ...interface{}) (interface{}, int) {
 	client.Call(context.Background(), path, request, response)
 
 	switch response.Status {
-	case api.FAIL:
+	case "fail":
 		jww.ERROR.Println(response.Msg)
 		return nil, ErrRemote
 	case "":

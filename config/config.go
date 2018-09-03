@@ -19,24 +19,26 @@ type Config struct {
 	// Top level options use an anonymous struct
 	BaseConfig `mapstructure:",squash"`
 	// Options for services
-	P2P       *P2PConfig       `mapstructure:"p2p"`
-	Wallet    *WalletConfig    `mapstructure:"wallet"`
-	Auth      *RPCAuthConfig   `mapstructure:"auth"`
-	Web       *WebConfig       `mapstructure:"web"`
-	Simd      *SimdConfig      `mapstructure:"simd"`
-	Websocket *WebsocketConfig `mapstructure:"ws"`
+	P2P          *P2PConfig          `mapstructure:"p2p"`
+	Wallet       *WalletConfig       `mapstructure:"wallet"`
+	Auth         *RPCAuthConfig      `mapstructure:"auth"`
+	Web          *WebConfig          `mapstructure:"web"`
+	Simd         *SimdConfig         `mapstructure:"simd"`
+	Websocket    *WebsocketConfig    `mapstructure:"ws"`
+	MainChainRpc *MainChainRpcConfig `mapstructure:"mainchain_rpc"`
 }
 
 // Default configurable parameters.
 func DefaultConfig() *Config {
 	return &Config{
-		BaseConfig: DefaultBaseConfig(),
-		P2P:        DefaultP2PConfig(),
-		Wallet:     DefaultWalletConfig(),
-		Auth:       DefaultRPCAuthConfig(),
-		Web:        DefaultWebConfig(),
-		Simd:       DefaultSimdConfig(),
-		Websocket:  DefaultWebsocketConfig(),
+		BaseConfig:   DefaultBaseConfig(),
+		P2P:          DefaultP2PConfig(),
+		Wallet:       DefaultWalletConfig(),
+		Auth:         DefaultRPCAuthConfig(),
+		Web:          DefaultWebConfig(),
+		Simd:         DefaultSimdConfig(),
+		Websocket:    DefaultWebsocketConfig(),
+		MainChainRpc: DefaultMainChainRpc(),
 	}
 }
 
@@ -82,6 +84,9 @@ type BaseConfig struct {
 
 	// log file name
 	LogFile string `mapstructure:"log_file"`
+
+	//Validate pegin proof by checking bytom transaction inclusion in mainchain.
+	ValidatePegin bool `mapstructure:"validate_pegin"`
 }
 
 // Default configurable base parameters.
@@ -158,8 +163,14 @@ type WebsocketConfig struct {
 type SideChainConfig struct {
 	FedpegXPubs            string `mapstructure:"fedpeg_xpubs"`
 	SignBlockScript        string `mapstructure:"sign_block_script"`
-	PeginMinDepth          uint8  `mapstructure:"pegin_confirmation_depth"`
+	PeginMinDepth          uint64 `mapstructure:"pegin_confirmation_depth"`
 	ParentGenesisBlockHash string `mapstructure:"parent_genesis_block_hash"`
+}
+
+type MainChainRpcConfig struct {
+	MainchainRpcHost string `mapstructure:"mainchain_rpc_host"`
+	MainchainRpcPort string `mapstructure:"mainchain_rpc_port"`
+	MainchainToken   string `mapstructure:"mainchain_rpc_token"`
 }
 
 // Default configurable rpc's auth parameters.
@@ -200,13 +211,20 @@ func DefaultWebsocketConfig() *WebsocketConfig {
 }
 
 // DeafultSideChainConfig for sidechain
-func DeafultSideChainConfig() *SideChainConfig {
+func DefaultSideChainConfig() *SideChainConfig {
 	defaultScript, _ := vmutil.DefaultCoinbaseProgram()
 
 	return &SideChainConfig{
 		SignBlockScript:        string(defaultScript),
 		PeginMinDepth:          6,
 		ParentGenesisBlockHash: "a75483474799ea1aa6bb910a1a5025b4372bf20bef20f246a2c2dc5e12e8a053",
+	}
+}
+
+func DefaultMainChainRpc() *MainChainRpcConfig {
+	return &MainChainRpcConfig{
+		MainchainRpcHost: "127.0.0.1",
+		MainchainRpcPort: "9888",
 	}
 }
 
