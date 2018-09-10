@@ -14,15 +14,21 @@ import (
 )
 
 func commitToArguments() (res *[32]byte) {
-	var pubkeys []ed25519.PublicKey
+	var fedpegPubkeys []ed25519.PublicKey
+	var signBlockPubkeys []ed25519.PublicKey
 	for _, xpub := range consensus.ActiveNetParams.FedpegXPubs {
-		pubkeys = append(pubkeys, xpub.PublicKey())
+		fedpegPubkeys = append(fedpegPubkeys, xpub.PublicKey())
 	}
-	fedpegScript, _ := vmutil.P2SPMultiSigProgram(pubkeys, len(pubkeys))
+	fedpegScript, _ := vmutil.P2SPMultiSigProgram(fedpegPubkeys, len(fedpegPubkeys))
+
+	for _, xpub := range consensus.ActiveNetParams.SignBlockXPubs {
+		signBlockPubkeys = append(signBlockPubkeys, xpub.PublicKey())
+	}
+	signBlockScript, _ := vmutil.P2SPMultiSigProgram(signBlockPubkeys, len(signBlockPubkeys))
 
 	hasher := sha256.New()
 	hasher.Write(fedpegScript)
-	hasher.Write([]byte(consensus.ActiveNetParams.SignBlockScript))
+	hasher.Write(signBlockScript)
 	resSlice := hasher.Sum(nil)
 	res = new([32]byte)
 	copy(res[:], resSlice)

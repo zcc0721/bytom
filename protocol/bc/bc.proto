@@ -48,6 +48,11 @@ message ValueDestination {
   uint64      position = 3;
 }
 
+message Proof {
+	bytes sign           = 1;
+	bytes controlProgram = 2;
+}
+
 message BlockHeader {
   uint64            version                 = 1;
   uint64            height                  = 2;
@@ -58,6 +63,7 @@ message BlockHeader {
   uint64            nonce                   = 7;
   uint64            bits                    = 8;
   TransactionStatus transaction_status      = 9;
+  Proof             Proof                   = 10;
 }
 
 message TxHeader {

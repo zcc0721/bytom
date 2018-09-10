@@ -392,11 +392,6 @@ func IsValidPeginWitness(peginWitness [][]byte, prevout bc.Output) (err error) {
 	if err != nil {
 		return err
 	}
-	// TODO在txOutProof获取到交易hash
-	var txHash bc.Hash = rawTx.ID
-	// TODO做proof验证
-	// TODO对交易做proof验证
-
 	// proof验证
 	var flags []uint8
 	for flag := range merkleBlock.Flags {
@@ -405,7 +400,7 @@ func IsValidPeginWitness(peginWitness [][]byte, prevout bc.Output) (err error) {
 	if !types.ValidateTxMerkleTreeProof(merkleBlock.TxHashes, flags, merkleBlock.MatchedTxIDs, merkleBlock.BlockHeader.BlockCommitment.TransactionsMerkleRoot) {
 		return errors.New("Merkleblock validation failed")
 	}
-
+	var txHash bc.Hash = rawTx.ID
 	// 交易进行验证
 	if !checkPeginTx(&rawTx, &prevout, amount, claimScript) {
 		return errors.New("check PeginTx fail")

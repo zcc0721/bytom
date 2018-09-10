@@ -121,12 +121,6 @@ func CheckProofOfWork(hash, seed *bc.Hash, bits uint64) bool {
 	return HashToBig(compareHash).Cmp(CompactToBig(bits)) <= 0
 }
 
-// CheckBytomProofOfWork checks whether the hash is valid for a given difficulty.
-func CheckBytomProofOfWork(hash, seed *bc.Hash, bits uint64) bool {
-	compareHash := tensority.AIHash.Hash(hash, seed)
-	return HashToBig(compareHash).Cmp(CompactToBig(bits)) <= 0
-}
-
 // CalcNextRequiredDifficulty return the difficulty using compact representation
 // for next block, when a lower difficulty Int actually reflects a more difficult
 // mining progress.

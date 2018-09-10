@@ -13,6 +13,29 @@ import (
 )
 
 type Proof struct {
+	Sign           []byte
+	ControlProgram []byte
+}
+
+func (p *Proof) readFrom(r *blockchain.Reader) (err error) {
+	if p.Sign, err = blockchain.ReadVarstr31(r); err != nil {
+		return err
+	}
+	if p.ControlProgram, err = blockchain.ReadVarstr31(r); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *Proof) writeTo(w io.Writer) error {
+	if _, err := blockchain.WriteVarstr31(w, p.Sign); err != nil {
+		return err
+	}
+
+	if _, err := blockchain.WriteVarstr31(w, p.ControlProgram); err != nil {
+		return err
+	}
+	return nil
 }
 
 // BlockHeader defines information about a block and is used in the Bytom
@@ -21,7 +44,7 @@ type BlockHeader struct {
 	Height            uint64  // The height of the block.
 	PreviousBlockHash bc.Hash // The hash of the previous block.
 	Timestamp         uint64  // The time of the block in seconds.
-	Proot             Proof
+	Proof             Proof
 	BlockCommitment
 }
 
@@ -88,6 +111,9 @@ func (bh *BlockHeader) readFrom(r *blockchain.Reader) (serflag uint8, err error)
 	if _, err = blockchain.ReadExtensibleString(r, bh.BlockCommitment.readFrom); err != nil {
 		return 0, err
 	}
+	if _, err = blockchain.ReadExtensibleString(r, bh.Proof.readFrom); err != nil {
+		return 0, err
+	}
 	return
 }
 
@@ -115,6 +141,9 @@ func (bh *BlockHeader) writeTo(w io.Writer, serflags uint8) (err error) {
 		return err
 	}
 	if _, err = blockchain.WriteExtensibleString(w, nil, bh.BlockCommitment.writeTo); err != nil {
+		return err
+	}
+	if _, err = blockchain.WriteExtensibleString(w, nil, bh.Proof.writeTo); err != nil {
 		return err
 	}
 	return nil

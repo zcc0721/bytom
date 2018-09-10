@@ -8,10 +8,14 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/bytom/account"
+	"github.com/bytom/consensus"
+	"github.com/bytom/crypto"
+	"github.com/bytom/crypto/ed25519/chainkd"
 	"github.com/bytom/mining"
 	"github.com/bytom/protocol"
 	"github.com/bytom/protocol/bc"
 	"github.com/bytom/protocol/bc/types"
+	"github.com/bytom/protocol/vm/vmutil"
 )
 
 const (
@@ -34,6 +38,8 @@ type CPUMiner struct {
 	updateNumWorkers chan struct{}
 	quit             chan struct{}
 	newBlockCh       chan *bc.Hash
+	Authoritys       map[string]string
+	position         uint64
 }
 
 // solveBlock attempts to find some combination of a nonce, extra nonce, and
@@ -68,6 +74,29 @@ func (m *CPUMiner) solveBlock(block *types.Block, ticker *time.Ticker, quit chan
 	return false
 }
 
+func (m *CPUMiner) isSealer(height uint64) bool {
+	authority := height % uint64(len(m.Authoritys))
+	return authority == m.position
+}
+
+func (m *CPUMiner) generateProof(block types.Block) (types.Proof, error) {
+	var accountID string
+	acct, err := m.accountManager.FindByID(accountID)
+	if err != nil {
+		return types.Proof{}, err
+	}
+	fmt.Println(acct)
+	var xPrv chainkd.XPrv
+	msg, _ := block.MarshalText()
+	sign := xPrv.Sign(msg)
+	pubHash := crypto.Ripemd160(xPrv.XPub().PublicKey())
+	control, err := vmutil.P2WPKHProgram([]byte(pubHash))
+	if err != nil {
+		return types.Proof{}, err
+	}
+	return types.Proof{Sign: sign, ControlProgram: control}, nil
+}
+
 // generateBlocks is a worker that is controlled by the miningWorkerController.
 // It is self contained in that it creates block templates and attempts to solve
 // them while detecting when it is performing stale work and reacting
@@ -86,30 +115,28 @@ out:
 			break out
 		default:
 		}
-
-		block, err := mining.NewBlockTemplate(m.chain, m.txPool, m.accountManager)
-		if err != nil {
-			log.Errorf("Mining: failed on create NewBlockTemplate: %v", err)
-			continue
-		}
-		fmt.Println(block)
-		// todo
-		/*
-			if m.solveBlock(block, ticker, quit) {
-				if isOrphan, err := m.chain.ProcessBlock(block); err == nil {
-					log.WithFields(log.Fields{
-						"height":   block.BlockHeader.Height,
-						"isOrphan": isOrphan,
-						"tx":       len(block.Transactions),
-					}).Info("Miner processed block")
-
-					blockHash := block.Hash()
-					m.newBlockCh <- &blockHash
-				} else {
-					log.WithField("height", block.BlockHeader.Height).Errorf("Miner fail on ProcessBlock, %v", err)
-				}
+		// 判断是否是出块人
+		if m.isSealer(m.chain.BestBlockHeight()) {
+			block, err := mining.NewBlockTemplate(m.chain, m.txPool, m.accountManager)
+			if err != nil {
+				log.Errorf("Mining: failed on create NewBlockTemplate: %v", err)
+				continue
 			}
-		*/
+			proof, _ := m.generateProof(*block)
+			block.Proof = proof
+			if isOrphan, err := m.chain.ProcessBlock(block); err == nil {
+				log.WithFields(log.Fields{
+					"height":   block.BlockHeader.Height,
+					"isOrphan": isOrphan,
+					"tx":       len(block.Transactions),
+				}).Info("Miner processed block")
+
+				blockHash := block.Hash()
+				m.newBlockCh <- &blockHash
+			} else {
+				log.WithField("height", block.BlockHeader.Height).Errorf("Miner fail on ProcessBlock, %v", err)
+			}
+		}
 	}
 
 	m.workerWg.Done()
@@ -268,6 +295,18 @@ func (m *CPUMiner) NumWorkers() int32 {
 // Use Start to begin the mining process.  See the documentation for CPUMiner
 // type for more details.
 func NewCPUMiner(c *protocol.Chain, accountManager *account.Manager, txPool *protocol.TxPool, newBlockCh chan *bc.Hash) *CPUMiner {
+	var authoritys map[string]string
+	var position uint64
+	for index, xpub := range consensus.ActiveNetParams.SignBlockXPubs {
+		pubHash := crypto.Ripemd160(xpub.PublicKey())
+		control, _ := vmutil.P2WPKHProgram([]byte(pubHash))
+		authoritys[string(control)] = xpub.String()
+		if accountManager.IsLocalControlProgram(control) {
+			position = uint64(index)
+		}
+	}
+	c.SetAuthoritys(authoritys)
+	c.SetPosition(position)
 	return &CPUMiner{
 		chain:            c,
 		accountManager:   accountManager,
@@ -275,5 +314,7 @@ func NewCPUMiner(c *protocol.Chain, accountManager *account.Manager, txPool *pro
 		numWorkers:       defaultNumWorkers,
 		updateNumWorkers: make(chan struct{}),
 		newBlockCh:       newBlockCh,
+		Authoritys:       authoritys,
+		position:         position,
 	}
 }

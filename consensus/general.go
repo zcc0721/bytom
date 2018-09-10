@@ -102,7 +102,7 @@ type Params struct {
 	Bech32HRPSegwit        string
 	Checkpoints            []Checkpoint
 	FedpegXPubs            []chainkd.XPub
-	SignBlockScript        string
+	SignBlockXPubs         []chainkd.XPub
 	PeginMinDepth          uint64
 	ParentGenesisBlockHash string
 }

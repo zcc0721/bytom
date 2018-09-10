@@ -13,8 +13,8 @@ func (bh *BlockHeader) writeForHash(w io.Writer) {
 	mustWriteForHash(w, bh.Timestamp)
 	mustWriteForHash(w, bh.TransactionsRoot)
 	mustWriteForHash(w, bh.TransactionStatusHash)
-	mustWriteForHash(w, bh.Bits)
-	mustWriteForHash(w, bh.Nonce)
+	mustWriteForHash(w, bh.Proof.Sign)
+	mustWriteForHash(w, bh.Proof.ControlProgram)
 }
 
 // NewBlockHeader creates a new BlockHeader and populates

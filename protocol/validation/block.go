@@ -1,12 +1,13 @@
 package validation
 
 import (
+	"encoding/hex"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 
 	"github.com/bytom/consensus"
-	"github.com/bytom/consensus/difficulty"
+	"github.com/bytom/crypto/ed25519/chainkd"
 	"github.com/bytom/errors"
 	"github.com/bytom/protocol/bc"
 	"github.com/bytom/protocol/bc/types"
@@ -71,17 +72,33 @@ func ValidateBlockHeader(b *bc.Block, parent *state.BlockNode) error {
 	if err := checkBlockTime(b, parent); err != nil {
 		return err
 	}
-	if !difficulty.CheckProofOfWork(&b.ID, parent.CalcNextSeed(), b.BlockHeader.Bits) {
-		return errWorkProof
-	}
+	/*
+		if !difficulty.CheckProofOfWork(&b.ID, parent.CalcNextSeed(), b.BlockHeader.Bits) {
+			return errWorkProof
+		}
+	*/
 	return nil
 }
 
 // ValidateBlock validates a block and the transactions within.
-func ValidateBlock(b *bc.Block, parent *state.BlockNode) error {
+func ValidateBlock(b *bc.Block, parent *state.BlockNode, block *types.Block, authoritys map[string]string, position uint64) error {
 	startTime := time.Now()
 	if err := ValidateBlockHeader(b, parent); err != nil {
 		return err
+	}
+	// 验证出块人
+	controlProgram := string(b.GetProof().GetControlProgram())
+	var xpub chainkd.XPub
+	tmp, err := hex.DecodeString(authoritys[controlProgram])
+	if err != nil {
+		return err
+	}
+
+	copy(xpub[:], tmp[:])
+	msg, _ := block.MarshalText()
+	sign := b.GetProof().GetSign()
+	if !xpub.Verify(msg, sign) {
+		return errors.New("Verification signature failed")
 	}
 
 	blockGasSum := uint64(0)
