@@ -53,7 +53,7 @@ func init() {
 
 	//sidecain
 	runNodeCmd.Flags().String("fedpeg_xpubs", config.Side.FedpegXPubs, "Change federated peg to use a different xpub.")
-	runNodeCmd.Flags().String("sign_block_script", config.Side.SignBlockScript, "Change federated peg to use a different script.")
+	runNodeCmd.Flags().String("sign_block_xpubs", config.Side.SignBlockXPubs, "Change federated peg to use a different xpub.")
 	runNodeCmd.Flags().Uint64("pegin_confirmation_depth", config.Side.PeginMinDepth, "Pegin claims must be this deep to be considered valid. (default: 6)")
 	runNodeCmd.Flags().String("parent_genesis_block_hash", config.Side.ParentGenesisBlockHash, "")
 

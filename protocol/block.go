@@ -152,7 +152,7 @@ func (c *Chain) saveBlock(block *types.Block) error {
 	bcBlock := types.MapBlock(block)
 	parent := c.index.GetNode(&block.PreviousBlockHash)
 
-	if err := validation.ValidateBlock(bcBlock, parent); err != nil {
+	if err := validation.ValidateBlock(bcBlock, parent, block, c.Authoritys, c.position); err != nil {
 		return errors.Sub(ErrBadBlock, err)
 	}
 	if err := c.store.SaveBlock(block, bcBlock.TransactionStatus); err != nil {

@@ -220,8 +220,17 @@ func initActiveNetParams(config *cfg.Config) {
 		}
 	}
 
+	var signBlockXPubs []chainkd.XPub
+	if xPubs := strings.Split(config.Side.SignBlockXPubs, ","); len(xPubs) > 0 {
+		for _, xpubStr := range xPubs {
+			var xpub chainkd.XPub
+			copy(xpub[:], []byte(xpubStr))
+			signBlockXPubs = append(signBlockXPubs, xpub)
+		}
+	}
+
 	consensus.ActiveNetParams.FedpegXPubs = federationRedeemXPubs
-	consensus.ActiveNetParams.SignBlockScript = config.Side.SignBlockScript
+	consensus.ActiveNetParams.SignBlockXPubs = signBlockXPubs
 	consensus.ActiveNetParams.PeginMinDepth = config.Side.PeginMinDepth
 	consensus.ActiveNetParams.ParentGenesisBlockHash = ""
 }

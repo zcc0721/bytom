@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/bytom/protocol/vm/vmutil"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -162,7 +161,7 @@ type WebsocketConfig struct {
 
 type SideChainConfig struct {
 	FedpegXPubs            string `mapstructure:"fedpeg_xpubs"`
-	SignBlockScript        string `mapstructure:"sign_block_script"`
+	SignBlockXPubs         string `mapstructure:"sign_block_script"`
 	PeginMinDepth          uint64 `mapstructure:"pegin_confirmation_depth"`
 	ParentGenesisBlockHash string `mapstructure:"parent_genesis_block_hash"`
 }
@@ -212,10 +211,7 @@ func DefaultWebsocketConfig() *WebsocketConfig {
 
 // DeafultSideChainConfig for sidechain
 func DefaultSideChainConfig() *SideChainConfig {
-	defaultScript, _ := vmutil.DefaultCoinbaseProgram()
-
 	return &SideChainConfig{
-		SignBlockScript:        string(defaultScript),
 		PeginMinDepth:          6,
 		ParentGenesisBlockHash: "a75483474799ea1aa6bb910a1a5025b4372bf20bef20f246a2c2dc5e12e8a053",
 	}
