@@ -295,7 +295,7 @@ func (m *CPUMiner) NumWorkers() int32 {
 // Use Start to begin the mining process.  See the documentation for CPUMiner
 // type for more details.
 func NewCPUMiner(c *protocol.Chain, accountManager *account.Manager, txPool *protocol.TxPool, newBlockCh chan *bc.Hash) *CPUMiner {
-	var authoritys map[string]string
+	authoritys := make(map[string]string)
 	var position uint64
 	for index, xpub := range consensus.ActiveNetParams.SignBlockXPubs {
 		pubHash := crypto.Ripemd160(xpub.PublicKey())
