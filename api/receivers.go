@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/bytom/blockchain/txbuilder"
+	chainjson "github.com/bytom/encoding/json"
 )
 
 func (a *API) createAccountReceiver(ctx context.Context, ins struct {
@@ -32,8 +33,8 @@ func (a *API) createAccountReceiver(ctx context.Context, ins struct {
 }
 
 type fundingResp struct {
-	MainchainAddress string `json:"mainchain_address"`
-	ClaimScript      string `json:"claim_script"`
+	MainchainAddress string             `json:"mainchain_address"`
+	ClaimScript      chainjson.HexBytes `json:"claim_script"`
 }
 
 func (a *API) getPeginAddress(ctx context.Context, ins struct {

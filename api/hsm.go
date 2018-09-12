@@ -43,6 +43,17 @@ func (a *API) pseudohsmListKeys(ctx context.Context) Response {
 	return NewSuccessResponse(a.wallet.Hsm.ListKeys())
 }
 
+func (a *API) pseudohsmPrivate(ctx context.Context, in struct {
+	Password string       `json:"password"`
+	Xpub     chainkd.XPub `json:"xpub"`
+}) Response {
+	xprv, err := a.wallet.Hsm.LoadChainKDKey(in.Xpub, in.Password)
+	if err != nil {
+		return NewErrorResponse(err)
+	}
+	return NewSuccessResponse(&xprv)
+}
+
 func (a *API) pseudohsmDeleteKey(ctx context.Context, x struct {
 	Password string       `json:"password"`
 	XPub     chainkd.XPub `json:"xpub"`

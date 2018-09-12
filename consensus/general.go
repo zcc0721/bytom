@@ -105,6 +105,7 @@ type Params struct {
 	SignBlockXPubs         []chainkd.XPub
 	PeginMinDepth          uint64
 	ParentGenesisBlockHash string
+	Signer                 string
 }
 
 // ActiveNetParams is ...

@@ -23,7 +23,7 @@ const (
 )
 
 var (
-	coreURL = env.String("BYTOM_URL", "http://localhost:9888")
+	coreURL = env.String("BYTOM_URL", "http://localhost:8888")
 )
 
 // Wraper rpc's client
@@ -35,7 +35,7 @@ func MustRPCClient() *rpc.Client {
 // Wrapper rpc call api.
 func ClientCall(path string, req ...interface{}) (interface{}, int) {
 
-	var response = response{}
+	var response = &Response{}
 	var request interface{}
 
 	if req != nil {

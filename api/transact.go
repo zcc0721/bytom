@@ -16,6 +16,7 @@ import (
 	"github.com/bytom/consensus"
 	"github.com/bytom/consensus/segwit"
 	"github.com/bytom/crypto/sha3pool"
+	chainjson "github.com/bytom/encoding/json"
 	"github.com/bytom/errors"
 	"github.com/bytom/math/checked"
 	"github.com/bytom/net/http/reqid"
@@ -360,7 +361,7 @@ func (a *API) claimPeginTx(ctx context.Context, ins struct {
 	Flags        []uint32          `json:"flags"`
 	MatchedTxIDs []*bc.Hash        `json:"matched_tx_ids"`
 
-	ClaimScript string `json:"claim_script"`
+	ClaimScript chainjson.HexBytes `json:"claim_script"`
 }) Response {
 
 	tmpl, err := a.createrawpegin(ctx, ins)
@@ -384,14 +385,14 @@ func (a *API) claimPeginTx(ctx context.Context, ins struct {
 }
 
 func (a *API) createrawpegin(ctx context.Context, ins struct {
-	Password     string            `json:"password"`
-	RawTx        types.Tx          `json:"raw_transaction"`
-	BlockHeader  types.BlockHeader `json:"block_header"`
-	TxHashes     []*bc.Hash        `json:"tx_hashes"`
-	StatusHashes []*bc.Hash        `json:"status_hashes"`
-	Flags        []uint32          `json:"flags"`
-	MatchedTxIDs []*bc.Hash        `json:"matched_tx_ids"`
-	ClaimScript  string            `json:"claim_script"`
+	Password     string             `json:"password"`
+	RawTx        types.Tx           `json:"raw_transaction"`
+	BlockHeader  types.BlockHeader  `json:"block_header"`
+	TxHashes     []*bc.Hash         `json:"tx_hashes"`
+	StatusHashes []*bc.Hash         `json:"status_hashes"`
+	Flags        []uint32           `json:"flags"`
+	MatchedTxIDs []*bc.Hash         `json:"matched_tx_ids"`
+	ClaimScript  chainjson.HexBytes `json:"claim_script"`
 }) (*txbuilder.Template, error) {
 	// proof验证
 	var flags []uint8
@@ -412,7 +413,7 @@ func (a *API) createrawpegin(ctx context.Context, ins struct {
 	// 找出与claim script有关联的交易的输出
 	var claimScript []byte
 	nOut := len(ins.RawTx.Outputs)
-	if ins.ClaimScript == "" {
+	if ins.ClaimScript == nil {
 		// 遍历寻找与交易输出有关的claim script
 		cps, err := a.wallet.AccountMgr.ListControlProgram()
 		if err != nil {
@@ -431,7 +432,7 @@ func (a *API) createrawpegin(ctx context.Context, ins struct {
 			}
 		}
 	} else {
-		claimScript = []byte(ins.ClaimScript)
+		claimScript = ins.ClaimScript
 		_, controlProg := a.wallet.AccountMgr.GetPeginControlPrograms(claimScript)
 		// 获取交易的输出
 		nOut = getPeginTxnOutputIndex(ins.RawTx, controlProg)

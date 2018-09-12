@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	_ "net/http/pprof"
@@ -28,7 +29,6 @@ import (
 	"github.com/bytom/consensus"
 	"github.com/bytom/crypto/ed25519/chainkd"
 	"github.com/bytom/database/leveldb"
-	chainjson "github.com/bytom/encoding/json"
 	"github.com/bytom/env"
 	"github.com/bytom/mining/cpuminer"
 	"github.com/bytom/mining/miningpool"
@@ -76,7 +76,7 @@ func NewNode(config *cfg.Config) *Node {
 	initLogFile(config)
 	initActiveNetParams(config)
 	initCommonConfig(config)
-	util.MainchainConfig = config.MainChainRpc
+	util.MainchainConfig = config.MainChain
 	util.ValidatePegin = config.ValidatePegin
 	// Get store
 	if config.DBBackend != "memdb" && config.DBBackend != "leveldb" {
@@ -229,10 +229,12 @@ func initActiveNetParams(config *cfg.Config) {
 		}
 	}
 
+	consensus.ActiveNetParams.Signer = config.Signer
 	consensus.ActiveNetParams.FedpegXPubs = federationRedeemXPubs
 	consensus.ActiveNetParams.SignBlockXPubs = signBlockXPubs
 	consensus.ActiveNetParams.PeginMinDepth = config.Side.PeginMinDepth
-	consensus.ActiveNetParams.ParentGenesisBlockHash = ""
+	consensus.ActiveNetParams.ParentGenesisBlockHash = config.Side.ParentGenesisBlockHash
+	fmt.Println(consensus.ActiveNetParams.ParentGenesisBlockHash, config.Side.ParentGenesisBlockHash)
 }
 
 func initLogFile(config *cfg.Config) {
@@ -326,21 +328,22 @@ func (n *Node) MiningPool() *miningpool.MiningPool {
 
 /**bytomdRPCCheck Check if bytomd connection via RPC is correctly working*/
 func bytomdRPCCheck() bool {
+	type Req struct {
+		BlockHeight uint64 `json:"block_height"`
+	}
 	if util.ValidatePegin {
 		for {
-			req := &struct {
-				BlockHeight uint64             `json:"block_height"`
-				BlockHash   chainjson.HexBytes `json:"block_hash"`
-			}{BlockHeight: 0}
-			resp, err := util.CallRPC("/get-block-header", req)
+			resp, err := util.CallRPC("/get-block-header", &Req{BlockHeight: 0})
 			if err != nil {
 				log.Error("Call mainchain interface get-block-header failed")
 				time.Sleep(time.Millisecond * 1000)
+				continue
 			}
 			tmp, _ := json.Marshal(resp)
 			var blockHeader api.GetBlockHeaderResp
 			json.Unmarshal(tmp, &blockHeader)
 			hash := blockHeader.BlockHeader.Hash()
+			fmt.Println(consensus.ActiveNetParams.ParentGenesisBlockHash, hash.String())
 			if strings.Compare(consensus.ActiveNetParams.ParentGenesisBlockHash, hash.String()) != 0 {
 				log.Error("Invalid parent genesis block hash response via RPC. Contacting wrong parent daemon?")
 				return false

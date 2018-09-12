@@ -176,7 +176,7 @@ func (m *Manager) CreateAddress(accountID string, change bool) (cp *CtrlProgram,
 	return m.createAddress(account, change)
 }
 
-func (m *Manager) CreatePeginAddress(accountID string, change bool) (string, string, error) {
+func (m *Manager) CreatePeginAddress(accountID string, change bool) (string, []byte, error) {
 	// 通过配置获取
 	claimCtrlProg, _ := m.CreateAddress(accountID, change)
 	claimScript := claimCtrlProg.ControlProgram
@@ -186,10 +186,10 @@ func (m *Manager) CreatePeginAddress(accountID string, change bool) (string, str
 
 	address, err := common.NewAddressWitnessScriptHash(scriptHash, &consensus.ActiveNetParams)
 	if err != nil {
-		return "", "", err
+		return "", nil, err
 	}
 
-	return address.EncodeAddress(), string(claimScript), nil
+	return address.EncodeAddress(), claimScript, nil
 
 }
 

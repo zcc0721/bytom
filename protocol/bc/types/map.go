@@ -1,6 +1,8 @@
 package types
 
 import (
+	"fmt"
+
 	"github.com/bytom/consensus"
 	"github.com/bytom/protocol/bc"
 	"github.com/bytom/protocol/vm"
@@ -197,6 +199,8 @@ func mapTx(tx *TxData) (headerID bc.Hash, hdr *bc.TxHeader, entryMap map[bc.Hash
 }
 
 func mapBlockHeader(old *BlockHeader) (bc.Hash, *bc.BlockHeader) {
+	fmt.Println(old.Proof.Sign)
+	fmt.Println(old.Proof.ControlProgram)
 	proof := &bc.Proof{Sign: old.Proof.Sign, ControlProgram: old.Proof.ControlProgram}
 	bh := bc.NewBlockHeader(old.Version, old.Height, &old.PreviousBlockHash, old.Timestamp, &old.TransactionsMerkleRoot, &old.TransactionStatusHash, proof)
 	return bc.EntryID(bh), bh

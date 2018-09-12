@@ -72,11 +72,6 @@ func ValidateBlockHeader(b *bc.Block, parent *state.BlockNode) error {
 	if err := checkBlockTime(b, parent); err != nil {
 		return err
 	}
-	/*
-		if !difficulty.CheckProofOfWork(&b.ID, parent.CalcNextSeed(), b.BlockHeader.Bits) {
-			return errWorkProof
-		}
-	*/
 	return nil
 }
 
