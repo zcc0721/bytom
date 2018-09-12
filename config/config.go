@@ -18,26 +18,26 @@ type Config struct {
 	// Top level options use an anonymous struct
 	BaseConfig `mapstructure:",squash"`
 	// Options for services
-	P2P          *P2PConfig          `mapstructure:"p2p"`
-	Wallet       *WalletConfig       `mapstructure:"wallet"`
-	Auth         *RPCAuthConfig      `mapstructure:"auth"`
-	Web          *WebConfig          `mapstructure:"web"`
-	Simd         *SimdConfig         `mapstructure:"simd"`
-	Websocket    *WebsocketConfig    `mapstructure:"ws"`
-	MainChainRpc *MainChainRpcConfig `mapstructure:"mainchain_rpc"`
+	P2P       *P2PConfig          `mapstructure:"p2p"`
+	Wallet    *WalletConfig       `mapstructure:"wallet"`
+	Auth      *RPCAuthConfig      `mapstructure:"auth"`
+	Web       *WebConfig          `mapstructure:"web"`
+	Simd      *SimdConfig         `mapstructure:"simd"`
+	Side      *SideChainConfig    `mapstructure:"side"`
+	MainChain *MainChainRpcConfig `mapstructure:"mainchain"`
 }
 
 // Default configurable parameters.
 func DefaultConfig() *Config {
 	return &Config{
-		BaseConfig:   DefaultBaseConfig(),
-		P2P:          DefaultP2PConfig(),
-		Wallet:       DefaultWalletConfig(),
-		Auth:         DefaultRPCAuthConfig(),
-		Web:          DefaultWebConfig(),
-		Simd:         DefaultSimdConfig(),
-		Websocket:    DefaultWebsocketConfig(),
-		MainChainRpc: DefaultMainChainRpc(),
+		BaseConfig: DefaultBaseConfig(),
+		P2P:        DefaultP2PConfig(),
+		Wallet:     DefaultWalletConfig(),
+		Auth:       DefaultRPCAuthConfig(),
+		Web:        DefaultWebConfig(),
+		Simd:       DefaultSimdConfig(),
+		Side:       DefaultSideChainConfig(),
+		MainChain:  DefaultMainChainRpc(),
 	}
 }
 
@@ -85,7 +85,8 @@ type BaseConfig struct {
 	LogFile string `mapstructure:"log_file"`
 
 	//Validate pegin proof by checking bytom transaction inclusion in mainchain.
-	ValidatePegin bool `mapstructure:"validate_pegin"`
+	ValidatePegin bool   `mapstructure:"validate_pegin"`
+	Signer        string `mapstructure:"signer"`
 }
 
 // Default configurable base parameters.

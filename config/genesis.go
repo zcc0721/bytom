@@ -7,7 +7,9 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/bytom/consensus"
+	"github.com/bytom/crypto"
 	"github.com/bytom/crypto/ed25519"
+	"github.com/bytom/crypto/ed25519/chainkd"
 	"github.com/bytom/protocol/bc"
 	"github.com/bytom/protocol/bc/types"
 	"github.com/bytom/protocol/vm/vmutil"
@@ -85,6 +87,21 @@ func mainNetGenesisBlock() *types.Block {
 		},
 		Transactions: []*types.Tx{tx},
 	}
+
+	var xPrv chainkd.XPrv
+	if consensus.ActiveNetParams.Signer == "" {
+		log.Panicf("Signer is empty")
+	}
+	copy(xPrv[:], []byte(consensus.ActiveNetParams.Signer))
+	msg, _ := block.MarshalText()
+	sign := xPrv.Sign(msg)
+	pubHash := crypto.Ripemd160(xPrv.XPub().PublicKey())
+	control, err := vmutil.P2WPKHProgram([]byte(pubHash))
+	if err != nil {
+		log.Panicf(err.Error())
+	}
+	block.Proof.Sign = sign
+	block.Proof.ControlProgram = control
 	return block
 }
 

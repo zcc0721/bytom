@@ -246,6 +246,10 @@ func (a *API) buildHandler() {
 		m.Handle("/rescan-wallet", jsonHandler(a.rescanWallet))
 		m.Handle("/wallet-info", jsonHandler(a.getWalletInfo))
 		m.Handle("/recovery-wallet", jsonHandler(a.recoveryFromRootXPubs))
+
+		m.Handle("/get-pegin-address", jsonHandler(a.getPeginAddress))
+		m.Handle("/claim-pegin-transaction", jsonHandler(a.claimPeginTx))
+		m.Handle("/dumpprivkey", jsonHandler(a.pseudohsmPrivate))
 	} else {
 		log.Warn("Please enable wallet")
 	}

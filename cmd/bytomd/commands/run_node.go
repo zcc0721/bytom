@@ -52,18 +52,21 @@ func init() {
 	runNodeCmd.Flags().Int("ws.max_num_concurrent_reqs", config.Websocket.MaxNumConcurrentReqs, "Max number of concurrent websocket requests that may be processed concurrently")
 
 	//sidecain
-	runNodeCmd.Flags().String("fedpeg_xpubs", config.Side.FedpegXPubs, "Change federated peg to use a different xpub.")
-	runNodeCmd.Flags().String("sign_block_xpubs", config.Side.SignBlockXPubs, "Change federated peg to use a different xpub.")
-	runNodeCmd.Flags().Uint64("pegin_confirmation_depth", config.Side.PeginMinDepth, "Pegin claims must be this deep to be considered valid. (default: 6)")
-	runNodeCmd.Flags().String("parent_genesis_block_hash", config.Side.ParentGenesisBlockHash, "")
+	runNodeCmd.Flags().String("side.fedpeg_xpubs", config.Side.FedpegXPubs, "Change federated peg to use a different xpub.")
+	runNodeCmd.Flags().Uint64("side.pegin_confirmation_depth", config.Side.PeginMinDepth, "Pegin claims must be this deep to be considered valid. (default: 6)")
+	runNodeCmd.Flags().String("side.parent_genesis_block_hash", config.Side.ParentGenesisBlockHash, "")
 
 	runNodeCmd.Flags().Bool("validate_pegin", config.ValidatePegin, "Validate pegin claims. All functionaries must run this.")
 	//mainchainrpchost
-	runNodeCmd.Flags().String("mainchain_rpc_host", config.MainChainRpc.MainchainRpcHost, "The address which the daemon will try to connect to validate peg-ins, if enabled.")
+	runNodeCmd.Flags().String("mainchain.mainchain_rpc_host", config.MainChain.MainchainRpcHost, "The address which the daemon will try to connect to validate peg-ins, if enabled.")
 	//mainchainrpcport
-	runNodeCmd.Flags().String("mainchain_rpc_port", config.MainChainRpc.MainchainRpcPort, "The port which the daemon will try to connect to validate peg-ins, if enabled.")
+	runNodeCmd.Flags().String("mainchain.mainchain_rpc_port", config.MainChain.MainchainRpcPort, "The port which the daemon will try to connect to validate peg-ins, if enabled.")
 	//mainchaintoken
-	runNodeCmd.Flags().String("mainchain_token", config.MainChainRpc.MainchainToken, "The rpc token that the daemon will use to connect to validate peg-ins, if enabled.")
+	runNodeCmd.Flags().String("mainchain.mainchain_token", config.MainChain.MainchainToken, "The rpc token that the daemon will use to connect to validate peg-ins, if enabled.")
+
+	//mainchaintoken
+	runNodeCmd.Flags().String("signer", config.Signer, "The signer corresponds to xpub of signblock")
+	runNodeCmd.Flags().String("sign_block_xpubs", config.Side.SignBlockXPubs, "Change federated peg to use a different xpub.")
 
 	RootCmd.AddCommand(runNodeCmd)
 }

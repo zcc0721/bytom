@@ -1,7 +1,7 @@
 package cpuminer
 
 import (
-	"fmt"
+	"errors"
 	"sync"
 	"time"
 
@@ -80,13 +80,11 @@ func (m *CPUMiner) isSealer(height uint64) bool {
 }
 
 func (m *CPUMiner) generateProof(block types.Block) (types.Proof, error) {
-	var accountID string
-	acct, err := m.accountManager.FindByID(accountID)
-	if err != nil {
-		return types.Proof{}, err
-	}
-	fmt.Println(acct)
 	var xPrv chainkd.XPrv
+	if consensus.ActiveNetParams.Signer == "" {
+		return types.Proof{}, errors.New("Signer is empty")
+	}
+	copy(xPrv[:], []byte(consensus.ActiveNetParams.Signer))
 	msg, _ := block.MarshalText()
 	sign := xPrv.Sign(msg)
 	pubHash := crypto.Ripemd160(xPrv.XPub().PublicKey())
