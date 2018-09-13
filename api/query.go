@@ -259,6 +259,35 @@ func (a *API) decodeRawTransaction(ctx context.Context, ins struct {
 	return NewSuccessResponse(tx)
 }
 
+type GetRawTransationResp struct {
+	Tx types.Tx `json:"raw_transaction"`
+}
+
+func (a *API) getRawTransaction(ins struct {
+	RawBlock string `json:"raw_block"`
+	TxID     string `json:"tx_id"`
+}) Response {
+
+	var rawTransaction *types.Tx
+	block := types.Block{}
+	err := block.UnmarshalText([]byte(ins.RawBlock))
+	if err != nil {
+		fmt.Println("111111111111111111")
+		return NewErrorResponse(err)
+	}
+	for _, tx := range block.Transactions {
+		if tx.ID.String() == ins.TxID {
+			rawTransaction = tx
+			break
+		}
+	}
+	if rawTransaction == nil {
+		return NewErrorResponse(errors.New("raw transaction do not find"))
+	}
+	resp := GetRawTransationResp{Tx: *rawTransaction}
+	return NewSuccessResponse(resp)
+}
+
 // POST /list-unspent-outputs
 func (a *API) listUnspentOutputs(ctx context.Context, filter struct {
 	AccountID     string `json:"account_id"`
