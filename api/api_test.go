@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"math"
 	"net/http/httptest"
 	"os"
@@ -14,8 +15,16 @@ import (
 	"github.com/bytom/blockchain/rpc"
 	"github.com/bytom/blockchain/txbuilder"
 	"github.com/bytom/consensus"
+	bytomtypes "github.com/bytom/protocol/bc/types/bytom/types"
 	"github.com/bytom/testutil"
 )
+
+func TestBlock(t *testing.T) {
+	blockHeaderStr := "0101000000000000000000000000000000000000000000000000000000000000000000e8b287d9054058e45ceb675a0b3d7ad3ab9d4288048789de8194e9766b26d8f42fdb624d4390c9c377e5192668bc0a367e4a4764f11e7c725ecced1d7b6a492974fab1b6d5bce19f8080a88d02cc99b3808080808020"
+	blockHeader := bytomtypes.BlockHeader{}
+	blockHeader.UnmarshalText([]byte(blockHeaderStr))
+	fmt.Println("11111111111", blockHeader.Height)
+}
 
 func TestAPIHandler(t *testing.T) {
 	a := &API{}

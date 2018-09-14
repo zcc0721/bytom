@@ -1,6 +1,8 @@
 package types
 
-import "github.com/bytom/protocol/bc"
+import (
+	"github.com/bytom/protocol/bc"
+)
 
 type ClaimCommitment struct {
 	bc.AssetAmount
@@ -17,6 +19,7 @@ type ClaimInput struct {
 
 // NewClaimInputInput create a new SpendInput struct.
 func NewClaimInputInput(arguments [][]byte, sourceID bc.Hash, assetID bc.AssetID, amount, sourcePos uint64, controlProgram []byte) *TxInput {
+
 	sc := SpendCommitment{
 		AssetAmount: bc.AssetAmount{
 			AssetId: &assetID,
@@ -27,6 +30,7 @@ func NewClaimInputInput(arguments [][]byte, sourceID bc.Hash, assetID bc.AssetID
 		VMVersion:      1,
 		ControlProgram: controlProgram,
 	}
+
 	return &TxInput{
 		AssetVersion: 1,
 		TypedInput: &ClaimInput{
@@ -37,4 +41,4 @@ func NewClaimInputInput(arguments [][]byte, sourceID bc.Hash, assetID bc.AssetID
 }
 
 // InputType is the interface function for return the input type.
-func (si *ClaimInput) InputType() uint8 { return ClainPegin }
+func (si *ClaimInput) InputType() uint8 { return ClainPeginInputType }

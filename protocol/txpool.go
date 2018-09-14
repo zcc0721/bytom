@@ -211,7 +211,6 @@ func (tp *TxPool) ProcessTransaction(tx *types.Tx, statusFail bool, height, fee 
 	if len(requireParents) > 0 {
 		return true, tp.addOrphan(txD, requireParents)
 	}
-
 	if err := tp.addTransaction(txD); err != nil {
 		return false, err
 	}
@@ -262,7 +261,7 @@ func (tp *TxPool) addTransaction(txD *TxDesc) error {
 }
 
 func (tp *TxPool) checkOrphanUtxos(tx *types.Tx) ([]*bc.Hash, error) {
-	if tx.Inputs[0].InputType() == types.ClainPegin {
+	if tx.Inputs[0].InputType() == types.ClainPeginInputType {
 		return []*bc.Hash{}, nil
 	}
 	view := state.NewUtxoViewpoint()

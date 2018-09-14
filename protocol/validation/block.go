@@ -81,18 +81,15 @@ func ValidateBlock(b *bc.Block, parent *state.BlockNode, block *types.Block, aut
 	if err := ValidateBlockHeader(b, parent); err != nil {
 		return err
 	}
+	time.Sleep(10 * time.Second)
 	// 验证出块人
-	controlProgram := string(b.GetProof().GetControlProgram())
-	var xpub chainkd.XPub
-	tmp, err := hex.DecodeString(authoritys[controlProgram])
-	if err != nil {
-		return err
-	}
 
-	copy(xpub[:], tmp[:])
-	msg, _ := block.MarshalText()
-	sign := b.GetProof().GetSign()
-	if !xpub.Verify(msg, sign) {
+	controlProgram := hex.EncodeToString(block.Proof.ControlProgram)
+	xpub := &chainkd.XPub{}
+	xpub.UnmarshalText([]byte(authoritys[controlProgram]))
+
+	msg := block.BlockCommitment.TransactionsMerkleRoot.Bytes()
+	if !xpub.Verify(msg, block.Proof.Sign) {
 		return errors.New("Verification signature failed")
 	}
 

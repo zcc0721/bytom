@@ -20,7 +20,8 @@ const (
 	//config parameter for coinbase reward
 	CoinbasePendingBlockNumber = uint64(100)
 	subsidyReductionInterval   = uint64(840000)
-	baseSubsidy                = uint64(41250000000)
+	baseSubsidy                = uint64(0)
+	//baseSubsidy                = uint64(41250000000)
 	//InitialBlockSubsidy        = uint64(140700041250000000)
 	InitialBlockSubsidy = uint64(0)
 

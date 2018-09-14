@@ -22,6 +22,8 @@ import (
 	"github.com/bytom/net/http/reqid"
 	"github.com/bytom/protocol/bc"
 	"github.com/bytom/protocol/bc/types"
+	"github.com/bytom/protocol/bc/types/bytom"
+	bytomtypes "github.com/bytom/protocol/bc/types/bytom/types"
 	"github.com/bytom/util"
 )
 
@@ -343,7 +345,7 @@ func (a *API) estimateTxGas(ctx context.Context, in struct {
 	return NewSuccessResponse(txGasResp)
 }
 
-func getPeginTxnOutputIndex(rawTx types.Tx, controlProg []byte) int {
+func getPeginTxnOutputIndex(rawTx bytomtypes.Tx, controlProg []byte) int {
 	for index, output := range rawTx.Outputs {
 		if bytes.Equal(output.ControlProgram, controlProg) {
 			return index
@@ -352,18 +354,26 @@ func getPeginTxnOutputIndex(rawTx types.Tx, controlProg []byte) int {
 	return 0
 }
 
+func toHash(hexBytes []chainjson.HexBytes) (hashs []*bytom.Hash) {
+	for _, data := range hexBytes {
+		b32 := [32]byte{}
+		copy(b32[:], data)
+		res := bytom.NewHash(b32)
+		hashs = append(hashs, &res)
+	}
+	return
+}
+
 func (a *API) claimPeginTx(ctx context.Context, ins struct {
-	Password     string            `json:"password"`
-	RawTx        types.Tx          `json:"raw_transaction"`
-	BlockHeader  types.BlockHeader `json:"block_header"`
-	TxHashes     []*bc.Hash        `json:"tx_hashes"`
-	StatusHashes []*bc.Hash        `json:"status_hashes"`
-	Flags        []uint32          `json:"flags"`
-	MatchedTxIDs []*bc.Hash        `json:"matched_tx_ids"`
-
-	ClaimScript chainjson.HexBytes `json:"claim_script"`
+	Password     string                 `json:"password"`
+	RawTx        bytomtypes.Tx          `json:"raw_transaction"`
+	BlockHeader  bytomtypes.BlockHeader `json:"block_header"`
+	TxHashes     []chainjson.HexBytes   `json:"tx_hashes"`
+	StatusHashes []chainjson.HexBytes   `json:"status_hashes"`
+	Flags        []uint32               `json:"flags"`
+	MatchedTxIDs []chainjson.HexBytes   `json:"matched_tx_ids"`
+	ClaimScript  chainjson.HexBytes     `json:"claim_script"`
 }) Response {
-
 	tmpl, err := a.createrawpegin(ctx, ins)
 	if err != nil {
 		log.WithField("build err", err).Error("fail on createrawpegin.")
@@ -376,30 +386,41 @@ func (a *API) claimPeginTx(ctx context.Context, ins struct {
 	}
 
 	// submit
-	if err := txbuilder.FinalizeTx(ctx, a.chain, &ins.RawTx); err != nil {
+	if err := txbuilder.FinalizeTx(ctx, a.chain, tmpl.Transaction); err != nil {
 		return NewErrorResponse(err)
 	}
 
-	log.WithField("tx_id", ins.RawTx.ID.String()).Info("claim script tx")
-	return NewSuccessResponse(&submitTxResp{TxID: &ins.RawTx.ID})
+	log.WithField("tx_id", tmpl.Transaction.ID.String()).Info("claim script tx")
+	return NewSuccessResponse(&submitTxResp{TxID: &tmpl.Transaction.ID})
+}
+
+// GetMerkleBlockResp is resp struct for GetTxOutProof API
+type GetMerkleBlock struct {
+	BlockHeader  bytomtypes.BlockHeader `json:"block_header"`
+	TxHashes     []chainjson.HexBytes   `json:"tx_hashes"`
+	StatusHashes []chainjson.HexBytes   `json:"status_hashes"`
+	Flags        []uint32               `json:"flags"`
+	MatchedTxIDs []chainjson.HexBytes   `json:"matched_tx_ids"`
 }
 
 func (a *API) createrawpegin(ctx context.Context, ins struct {
-	Password     string             `json:"password"`
-	RawTx        types.Tx           `json:"raw_transaction"`
-	BlockHeader  types.BlockHeader  `json:"block_header"`
-	TxHashes     []*bc.Hash         `json:"tx_hashes"`
-	StatusHashes []*bc.Hash         `json:"status_hashes"`
-	Flags        []uint32           `json:"flags"`
-	MatchedTxIDs []*bc.Hash         `json:"matched_tx_ids"`
-	ClaimScript  chainjson.HexBytes `json:"claim_script"`
+	Password     string                 `json:"password"`
+	RawTx        bytomtypes.Tx          `json:"raw_transaction"`
+	BlockHeader  bytomtypes.BlockHeader `json:"block_header"`
+	TxHashes     []chainjson.HexBytes   `json:"tx_hashes"`
+	StatusHashes []chainjson.HexBytes   `json:"status_hashes"`
+	Flags        []uint32               `json:"flags"`
+	MatchedTxIDs []chainjson.HexBytes   `json:"matched_tx_ids"`
+	ClaimScript  chainjson.HexBytes     `json:"claim_script"`
 }) (*txbuilder.Template, error) {
 	// proof验证
 	var flags []uint8
 	for flag := range ins.Flags {
 		flags = append(flags, uint8(flag))
 	}
-	if !types.ValidateTxMerkleTreeProof(ins.TxHashes, flags, ins.MatchedTxIDs, ins.BlockHeader.BlockCommitment.TransactionsMerkleRoot) {
+	txHashes := toHash(ins.TxHashes)
+	matchedTxIDs := toHash(ins.MatchedTxIDs)
+	if !bytomtypes.ValidateTxMerkleTreeProof(txHashes, flags, matchedTxIDs, ins.BlockHeader.BlockCommitment.TransactionsMerkleRoot) {
 		return nil, errors.New("Merkleblock validation failed")
 	}
 	// CheckBytomProof
@@ -459,7 +480,20 @@ func (a *API) createrawpegin(ctx context.Context, ins struct {
 	builder := txbuilder.NewBuilder(time.Now())
 	// TODO 根据raw tx生成一个utxo
 	//txInput := types.NewClaimInputInput(nil, *ins.RawTx.Outputs[nOut].AssetId, ins.RawTx.Outputs[nOut].Amount, cp.ControlProgram)
-	txInput := types.NewClaimInputInput(nil, ins.RawTx.ID, *ins.RawTx.Outputs[nOut].AssetId, ins.RawTx.Outputs[nOut].Amount, uint64(nOut), cp.ControlProgram)
+	assetId := bc.AssetID{}
+	assetId.V0 = ins.RawTx.Outputs[nOut].AssetId.GetV0()
+	assetId.V1 = ins.RawTx.Outputs[nOut].AssetId.GetV1()
+	assetId.V2 = ins.RawTx.Outputs[nOut].AssetId.GetV2()
+	assetId.V3 = ins.RawTx.Outputs[nOut].AssetId.GetV3()
+
+	sourceID := bc.Hash{}
+	sourceID.V0 = ins.RawTx.ID.GetV0()
+	sourceID.V1 = ins.RawTx.ID.GetV1()
+	sourceID.V2 = ins.RawTx.ID.GetV2()
+	sourceID.V3 = ins.RawTx.ID.GetV3()
+	outputAccount := ins.RawTx.Outputs[nOut].Amount
+
+	txInput := types.NewClaimInputInput(nil, sourceID, assetId, outputAccount, uint64(nOut), cp.ControlProgram)
 	if err := builder.AddInput(txInput, &txbuilder.SigningInstruction{}); err != nil {
 		return nil, err
 	}
@@ -467,8 +501,8 @@ func (a *API) createrawpegin(ctx context.Context, ins struct {
 	if err != nil {
 		return nil, err
 	}
-	outputAccount := ins.RawTx.Outputs[nOut].Amount
-	if err = builder.AddOutput(types.NewTxOutput(*ins.RawTx.Outputs[nOut].AssetId, outputAccount, program.ControlProgram)); err != nil {
+
+	if err = builder.AddOutput(types.NewTxOutput(assetId, outputAccount, program.ControlProgram)); err != nil {
 		return nil, err
 	}
 
@@ -491,7 +525,7 @@ func (a *API) createrawpegin(ctx context.Context, ins struct {
 	tx, _ := json.Marshal(ins.RawTx)
 	stack = append(stack, tx)
 	// proof
-	MerkleBLock := GetMerkleBlockResp{
+	MerkleBLock := GetMerkleBlock{
 		BlockHeader:  ins.BlockHeader,
 		TxHashes:     ins.TxHashes,
 		StatusHashes: ins.StatusHashes,

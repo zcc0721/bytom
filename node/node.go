@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net"
 	"net/http"
 	_ "net/http/pprof"
@@ -215,6 +214,7 @@ func initActiveNetParams(config *cfg.Config) {
 	if fedpegXPubs := strings.Split(config.Side.FedpegXPubs, ","); len(fedpegXPubs) > 0 {
 		for _, xpubStr := range fedpegXPubs {
 			var xpub chainkd.XPub
+			//xpub.UnmarshalText([]byte(xpubStr))
 			copy(xpub[:], []byte(xpubStr))
 			federationRedeemXPubs = append(federationRedeemXPubs, xpub)
 		}
@@ -224,7 +224,7 @@ func initActiveNetParams(config *cfg.Config) {
 	if xPubs := strings.Split(config.Side.SignBlockXPubs, ","); len(xPubs) > 0 {
 		for _, xpubStr := range xPubs {
 			var xpub chainkd.XPub
-			copy(xpub[:], []byte(xpubStr))
+			xpub.UnmarshalText([]byte(xpubStr))
 			signBlockXPubs = append(signBlockXPubs, xpub)
 		}
 	}
@@ -234,7 +234,6 @@ func initActiveNetParams(config *cfg.Config) {
 	consensus.ActiveNetParams.SignBlockXPubs = signBlockXPubs
 	consensus.ActiveNetParams.PeginMinDepth = config.Side.PeginMinDepth
 	consensus.ActiveNetParams.ParentGenesisBlockHash = config.Side.ParentGenesisBlockHash
-	fmt.Println(consensus.ActiveNetParams.ParentGenesisBlockHash, config.Side.ParentGenesisBlockHash)
 }
 
 func initLogFile(config *cfg.Config) {
@@ -343,7 +342,6 @@ func bytomdRPCCheck() bool {
 			var blockHeader api.GetBlockHeaderResp
 			json.Unmarshal(tmp, &blockHeader)
 			hash := blockHeader.BlockHeader.Hash()
-			fmt.Println(consensus.ActiveNetParams.ParentGenesisBlockHash, hash.String())
 			if strings.Compare(consensus.ActiveNetParams.ParentGenesisBlockHash, hash.String()) != 0 {
 				log.Error("Invalid parent genesis block hash response via RPC. Contacting wrong parent daemon?")
 				return false

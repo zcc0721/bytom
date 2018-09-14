@@ -180,6 +180,7 @@ func (m *Manager) CreatePeginAddress(accountID string, change bool) (string, []b
 	// 通过配置获取
 	claimCtrlProg, _ := m.CreateAddress(accountID, change)
 	claimScript := claimCtrlProg.ControlProgram
+
 	federationRedeemScript := vmutil.CalculateContract(consensus.ActiveNetParams.FedpegXPubs, claimScript)
 
 	scriptHash := crypto.Sha256(federationRedeemScript)
@@ -201,11 +202,16 @@ func (m *Manager) GetPeginControlPrograms(claimScript []byte) (string, []byte) {
 	if err != nil {
 		return "", nil
 	}
-	control, err := vmutil.P2WSHProgram(scriptHash)
+
+	redeemContract := address.ScriptAddress()
+
+	program := []byte{}
+	program, err = vmutil.P2WSHProgram(redeemContract)
 	if err != nil {
 		return "", nil
 	}
-	return address.EncodeAddress(), control
+
+	return address.EncodeAddress(), program
 }
 
 // DeleteAccount deletes the account's ID or alias matching accountInfo.
