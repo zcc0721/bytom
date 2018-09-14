@@ -1,6 +1,7 @@
 package cpuminer
 
 import (
+	"encoding/hex"
 	"errors"
 	"sync"
 	"time"
@@ -85,10 +86,10 @@ func (m *CPUMiner) generateProof(block types.Block) (types.Proof, error) {
 		return types.Proof{}, errors.New("Signer is empty")
 	}
 	copy(xPrv[:], []byte(consensus.ActiveNetParams.Signer))
-	msg, _ := block.MarshalText()
-	sign := xPrv.Sign(msg)
+	sign := xPrv.Sign(block.BlockCommitment.TransactionsMerkleRoot.Bytes())
 	pubHash := crypto.Ripemd160(xPrv.XPub().PublicKey())
 	control, err := vmutil.P2WPKHProgram([]byte(pubHash))
+
 	if err != nil {
 		return types.Proof{}, err
 	}
@@ -298,7 +299,8 @@ func NewCPUMiner(c *protocol.Chain, accountManager *account.Manager, txPool *pro
 	for index, xpub := range consensus.ActiveNetParams.SignBlockXPubs {
 		pubHash := crypto.Ripemd160(xpub.PublicKey())
 		control, _ := vmutil.P2WPKHProgram([]byte(pubHash))
-		authoritys[string(control)] = xpub.String()
+		key := hex.EncodeToString(control)
+		authoritys[key] = xpub.String()
 		if accountManager.IsLocalControlProgram(control) {
 			position = uint64(index)
 		}

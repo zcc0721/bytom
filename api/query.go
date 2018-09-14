@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"fmt"
 
+	"github.com/bytom/protocol/bc/types/bytom"
+
 	log "github.com/sirupsen/logrus"
 
 	"github.com/bytom/account"
@@ -18,6 +20,7 @@ import (
 	"github.com/bytom/errors"
 	"github.com/bytom/protocol/bc"
 	"github.com/bytom/protocol/bc/types"
+	bytomtypes "github.com/bytom/protocol/bc/types/bytom/types"
 )
 
 // POST /list-accounts
@@ -260,7 +263,8 @@ func (a *API) decodeRawTransaction(ctx context.Context, ins struct {
 }
 
 type GetRawTransationResp struct {
-	Tx types.Tx `json:"raw_transaction"`
+	Tx        *bytomtypes.Tx `json:"raw_transaction"`
+	BlockHash bytom.Hash     `json:"block_hash"`
 }
 
 func (a *API) getRawTransaction(ins struct {
@@ -268,15 +272,18 @@ func (a *API) getRawTransaction(ins struct {
 	TxID     string `json:"tx_id"`
 }) Response {
 
-	var rawTransaction *types.Tx
-	block := types.Block{}
+	var rawTransaction *bytomtypes.Tx
+	block := &bytomtypes.Block{}
 	err := block.UnmarshalText([]byte(ins.RawBlock))
 	if err != nil {
-		fmt.Println("111111111111111111")
 		return NewErrorResponse(err)
 	}
+
+	txID := bc.Hash{}
+	txID.UnmarshalText([]byte(ins.TxID))
+
 	for _, tx := range block.Transactions {
-		if tx.ID.String() == ins.TxID {
+		if tx.ID.String() == txID.String() {
 			rawTransaction = tx
 			break
 		}
@@ -284,7 +291,7 @@ func (a *API) getRawTransaction(ins struct {
 	if rawTransaction == nil {
 		return NewErrorResponse(errors.New("raw transaction do not find"))
 	}
-	resp := GetRawTransationResp{Tx: *rawTransaction}
+	resp := GetRawTransationResp{Tx: rawTransaction, BlockHash: block.Hash()}
 	return NewSuccessResponse(resp)
 }
 

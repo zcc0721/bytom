@@ -162,7 +162,7 @@ type WebsocketConfig struct {
 
 type SideChainConfig struct {
 	FedpegXPubs            string `mapstructure:"fedpeg_xpubs"`
-	SignBlockXPubs         string `mapstructure:"sign_block_script"`
+	SignBlockXPubs         string `mapstructure:"sign_block_xpubs"`
 	PeginMinDepth          uint64 `mapstructure:"pegin_confirmation_depth"`
 	ParentGenesisBlockHash string `mapstructure:"parent_genesis_block_hash"`
 }

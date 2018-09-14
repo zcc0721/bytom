@@ -32,7 +32,6 @@ func FinalizeTx(ctx context.Context, c *protocol.Chain, tx *types.Tx) error {
 	if fee := CalculateTxFee(tx); fee > cfg.CommonConfig.Wallet.MaxTxFee {
 		return ErrExtTxFee
 	}
-
 	if err := checkTxSighashCommitment(tx); err != nil {
 		return err
 	}
@@ -44,7 +43,6 @@ func FinalizeTx(ctx context.Context, c *protocol.Chain, tx *types.Tx) error {
 	}
 	tx.TxData.SerializedSize = uint64(len(data))
 	tx.Tx.SerializedSize = uint64(len(data))
-
 	isOrphan, err := c.ValidateTx(tx)
 	if errors.Root(err) == protocol.ErrBadTx {
 		return errors.Sub(ErrRejected, err)
@@ -86,6 +84,8 @@ func checkTxSighashCommitment(tx *types.Tx) error {
 		case *types.SpendInput:
 			args = t.Arguments
 		case *types.IssuanceInput:
+			args = t.Arguments
+		case *types.ClaimInput:
 			args = t.Arguments
 		}
 		// Note: These numbers will need to change if more args are added such that the minimum length changes
@@ -140,7 +140,6 @@ func CalculateTxFee(tx *types.Tx) (fee uint64) {
 			totalOutputBTM += output.Amount
 		}
 	}
-
 	fee = totalInputBTM - totalOutputBTM
 	return
 }

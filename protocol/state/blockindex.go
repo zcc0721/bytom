@@ -51,13 +51,14 @@ func NewBlockNode(bh *types.BlockHeader, parent *BlockNode) (*BlockNode, error) 
 		TransactionsMerkleRoot: bh.TransactionsMerkleRoot,
 		TransactionStatusHash:  bh.TransactionStatusHash,
 	}
-
-	if bh.Height == 0 {
-		node.Seed = consensus.InitialSeed
-	} else {
-		node.Seed = parent.CalcNextSeed()
-		node.WorkSum = node.WorkSum.Add(parent.WorkSum, node.WorkSum)
-	}
+	/*
+		if bh.Height == 0 {
+			node.Seed = consensus.InitialSeed
+		} else {
+			node.Seed = parent.CalcNextSeed()
+			node.WorkSum = node.WorkSum.Add(parent.WorkSum, node.WorkSum)
+		}
+	*/
 	return node, nil
 }
 

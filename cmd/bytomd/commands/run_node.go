@@ -66,7 +66,7 @@ func init() {
 
 	//mainchaintoken
 	runNodeCmd.Flags().String("signer", config.Signer, "The signer corresponds to xpub of signblock")
-	runNodeCmd.Flags().String("sign_block_xpubs", config.Side.SignBlockXPubs, "Change federated peg to use a different xpub.")
+	runNodeCmd.Flags().String("side.sign_block_xpubs", config.Side.SignBlockXPubs, "Change federated peg to use a different xpub.")
 
 	RootCmd.AddCommand(runNodeCmd)
 }

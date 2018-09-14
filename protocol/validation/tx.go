@@ -348,7 +348,7 @@ func checkValid(vs *validationState, e bc.Entry) (err error) {
 		if err = checkValidDest(&vs2, e.WitnessDestination); err != nil {
 			return errors.Wrap(err, "checking spend destination")
 		}
-
+		vs.gasStatus.GasValid = true
 	default:
 		return fmt.Errorf("entry has unexpected type %T", e)
 	}
@@ -642,7 +642,6 @@ func ValidateTx(tx *bc.Tx, block *bc.Block) (*GasState, error) {
 	if err := checkStandardTx(tx); err != nil {
 		return gasStatus, err
 	}
-
 	vs := &validationState{
 		block:     block,
 		tx:        tx,

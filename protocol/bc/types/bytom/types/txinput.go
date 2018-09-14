@@ -6,7 +6,7 @@ import (
 
 	"github.com/bytom/encoding/blockchain"
 	"github.com/bytom/errors"
-	"github.com/bytom/protocol/bc"
+	"github.com/bytom/protocol/bc/types/bytom"
 )
 
 // serflag variables for input types.
@@ -14,18 +14,15 @@ const (
 	IssuanceInputType uint8 = iota
 	SpendInputType
 	CoinbaseInputType
-	ClainPeginInputType
 )
 
 type (
 	// TxInput is the top level struct of tx input.
 	TxInput struct {
 		AssetVersion uint64
-		IsPegin      bool
 		TypedInput
 		CommitmentSuffix []byte
 		WitnessSuffix    []byte
-		Peginwitness     [][]byte
 	}
 
 	// TypedInput return the txinput type.
@@ -37,34 +34,30 @@ type (
 var errBadAssetID = errors.New("asset ID does not match other issuance parameters")
 
 // AssetAmount return the asset id and amount of the txinput.
-func (t *TxInput) AssetAmount() bc.AssetAmount {
+func (t *TxInput) AssetAmount() bytom.AssetAmount {
 	switch inp := t.TypedInput.(type) {
 	case *IssuanceInput:
 		assetID := inp.AssetID()
-		return bc.AssetAmount{
+		return bytom.AssetAmount{
 			AssetId: &assetID,
 			Amount:  inp.Amount,
 		}
 	case *SpendInput:
 		return inp.AssetAmount
-	case *ClaimInput:
-		return inp.AssetAmount
 	}
-	return bc.AssetAmount{}
+	return bytom.AssetAmount{}
 }
 
 // AssetID return the assetID of the txinput
-func (t *TxInput) AssetID() bc.AssetID {
+func (t *TxInput) AssetID() bytom.AssetID {
 	switch inp := t.TypedInput.(type) {
 	case *IssuanceInput:
 		return inp.AssetID()
 	case *SpendInput:
 		return *inp.AssetId
-	case *ClaimInput:
-		return *inp.AssetId
 
 	}
-	return bc.AssetID{}
+	return bytom.AssetID{}
 }
 
 // Amount return the asset amount of the txinput
@@ -73,8 +66,6 @@ func (t *TxInput) Amount() uint64 {
 	case *IssuanceInput:
 		return inp.Amount
 	case *SpendInput:
-		return inp.Amount
-	case *ClaimInput:
 		return inp.Amount
 	}
 	return 0
@@ -96,22 +87,12 @@ func (t *TxInput) IssuanceProgram() []byte {
 	return nil
 }
 
-// AssetDefinition return the asset definition of the issuance input
-func (t *TxInput) AssetDefinition() []byte {
-	if ii, ok := t.TypedInput.(*IssuanceInput); ok {
-		return ii.AssetDefinition
-	}
-	return nil
-}
-
 // Arguments get the args for the input
 func (t *TxInput) Arguments() [][]byte {
 	switch inp := t.TypedInput.(type) {
 	case *IssuanceInput:
 		return inp.Arguments
 	case *SpendInput:
-		return inp.Arguments
-	case *ClaimInput:
 		return inp.Arguments
 	}
 	return nil
@@ -124,13 +105,11 @@ func (t *TxInput) SetArguments(args [][]byte) {
 		inp.Arguments = args
 	case *SpendInput:
 		inp.Arguments = args
-	case *ClaimInput:
-		inp.Arguments = args
 	}
 }
 
 // SpentOutputID calculate the hash of spended output
-func (t *TxInput) SpentOutputID() (o bc.Hash, err error) {
+func (t *TxInput) SpentOutputID() (o bytom.Hash, err error) {
 	if si, ok := t.TypedInput.(*SpendInput); ok {
 		o, err = ComputeOutputID(&si.SpendCommitment)
 	}
@@ -142,7 +121,7 @@ func (t *TxInput) readFrom(r *blockchain.Reader) (err error) {
 		return err
 	}
 
-	var assetID bc.AssetID
+	var assetID bytom.AssetID
 	t.CommitmentSuffix, err = blockchain.ReadExtensibleString(r, func(r *blockchain.Reader) error {
 		if t.AssetVersion != 1 {
 			return nil
@@ -172,12 +151,7 @@ func (t *TxInput) readFrom(r *blockchain.Reader) (err error) {
 			if si.SpendCommitmentSuffix, err = si.SpendCommitment.readFrom(r, 1); err != nil {
 				return err
 			}
-		case ClainPeginInputType:
-			ci := new(ClaimInput)
-			t.TypedInput = ci
-			if ci.SpendCommitmentSuffix, err = ci.SpendCommitment.readFrom(r, 1); err != nil {
-				return err
-			}
+
 		case CoinbaseInputType:
 			ci := new(CoinbaseInput)
 			t.TypedInput = ci
@@ -218,10 +192,6 @@ func (t *TxInput) readFrom(r *blockchain.Reader) (err error) {
 			}
 
 		case *SpendInput:
-			if inp.Arguments, err = blockchain.ReadVarstrList(r); err != nil {
-				return err
-			}
-		case *ClaimInput:
 			if inp.Arguments, err = blockchain.ReadVarstrList(r); err != nil {
 				return err
 			}
@@ -270,11 +240,7 @@ func (t *TxInput) writeInputCommitment(w io.Writer) (err error) {
 			return err
 		}
 		return inp.SpendCommitment.writeExtensibleString(w, inp.SpendCommitmentSuffix, t.AssetVersion)
-	case *ClaimInput:
-		if _, err = w.Write([]byte{SpendInputType}); err != nil {
-			return err
-		}
-		return inp.SpendCommitment.writeExtensibleString(w, inp.SpendCommitmentSuffix, t.AssetVersion)
+
 	case *CoinbaseInput:
 		if _, err = w.Write([]byte{CoinbaseInputType}); err != nil {
 			return err
@@ -305,9 +271,6 @@ func (t *TxInput) writeInputWitness(w io.Writer) error {
 		return err
 
 	case *SpendInput:
-		_, err := blockchain.WriteVarstrList(w, inp.Arguments)
-		return err
-	case *ClaimInput:
 		_, err := blockchain.WriteVarstrList(w, inp.Arguments)
 		return err
 	}

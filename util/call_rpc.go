@@ -60,12 +60,13 @@ func IsConfirmedBytomBlock(txHeight uint64, nMinConfirmationDepth uint64) error 
 		return exitCode
 	}
 	type blockHeight struct {
-		BlockCount uint64 `mapstructure:"block_count"`
+		BlockCount uint64 `json:"block_count"`
 	}
 	var mainchainHeight blockHeight
 	tmp, _ := json.Marshal(data)
 	json.Unmarshal(tmp, &mainchainHeight)
-	if (mainchainHeight.BlockCount - txHeight) < nMinConfirmationDepth {
+	fmt.Println(mainchainHeight.BlockCount, txHeight)
+	if mainchainHeight.BlockCount < txHeight || (mainchainHeight.BlockCount-txHeight) < nMinConfirmationDepth {
 		return errors.New("Peg-in bytom transaction needs more confirmations to be sent")
 	}
 	return nil
