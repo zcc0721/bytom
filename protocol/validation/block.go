@@ -81,9 +81,8 @@ func ValidateBlock(b *bc.Block, parent *state.BlockNode, block *types.Block, aut
 	if err := ValidateBlockHeader(b, parent); err != nil {
 		return err
 	}
-	time.Sleep(10 * time.Second)
+	time.Sleep(3 * time.Second)
 	// 验证出块人
-
 	controlProgram := hex.EncodeToString(block.Proof.ControlProgram)
 	xpub := &chainkd.XPub{}
 	xpub.UnmarshalText([]byte(authoritys[controlProgram]))

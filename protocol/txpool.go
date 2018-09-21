@@ -196,6 +196,10 @@ func (tp *TxPool) ProcessTransaction(tx *types.Tx, statusFail bool, height, fee 
 	tp.mtx.Lock()
 	defer tp.mtx.Unlock()
 
+	if tp.isWithdrawSpent(tx) {
+		return false, errors.New("pegin-already-claimed")
+	}
+
 	txD := &TxDesc{
 		Tx:         tx,
 		StatusFail: statusFail,
@@ -203,6 +207,7 @@ func (tp *TxPool) ProcessTransaction(tx *types.Tx, statusFail bool, height, fee 
 		Height:     height,
 		Fee:        fee,
 	}
+
 	requireParents, err := tp.checkOrphanUtxos(tx)
 	if err != nil {
 		return false, err
@@ -217,6 +222,19 @@ func (tp *TxPool) ProcessTransaction(tx *types.Tx, statusFail bool, height, fee 
 
 	tp.processOrphans(txD)
 	return false, nil
+}
+
+func (tp *TxPool) isWithdrawSpent(tx *types.Tx) bool {
+	for key, value := range tx.Entries {
+		switch value.(type) {
+		case *bc.Claim:
+			return tp.store.IsWithdrawSpent(&key)
+		default:
+			continue
+		}
+	}
+
+	return false
 }
 
 func (tp *TxPool) addOrphan(txD *TxDesc, requireParents []*bc.Hash) error {
@@ -261,9 +279,6 @@ func (tp *TxPool) addTransaction(txD *TxDesc) error {
 }
 
 func (tp *TxPool) checkOrphanUtxos(tx *types.Tx) ([]*bc.Hash, error) {
-	if tx.Inputs[0].InputType() == types.ClainPeginInputType {
-		return []*bc.Hash{}, nil
-	}
 	view := state.NewUtxoViewpoint()
 	if err := tp.store.GetTransactionsUtxo(view, []*bc.Tx{tx.Tx}); err != nil {
 		return nil, err

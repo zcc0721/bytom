@@ -85,11 +85,10 @@ func (m *CPUMiner) generateProof(block types.Block) (types.Proof, error) {
 	if consensus.ActiveNetParams.Signer == "" {
 		return types.Proof{}, errors.New("Signer is empty")
 	}
-	copy(xPrv[:], []byte(consensus.ActiveNetParams.Signer))
+	xPrv.UnmarshalText([]byte(consensus.ActiveNetParams.Signer))
 	sign := xPrv.Sign(block.BlockCommitment.TransactionsMerkleRoot.Bytes())
 	pubHash := crypto.Ripemd160(xPrv.XPub().PublicKey())
 	control, err := vmutil.P2WPKHProgram([]byte(pubHash))
-
 	if err != nil {
 		return types.Proof{}, err
 	}
@@ -136,6 +135,7 @@ out:
 				log.WithField("height", block.BlockHeader.Height).Errorf("Miner fail on ProcessBlock, %v", err)
 			}
 		}
+		time.Sleep(3 * time.Second)
 	}
 
 	m.workerWg.Done()
