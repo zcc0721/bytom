@@ -328,6 +328,8 @@ func checkValid(vs *validationState, e bc.Entry) (err error) {
 			return errors.New("PeginWitness invalid")
 		}
 
+		// 判断cliamd的输入是否已经被用
+
 		eq, err := spentOutput.Source.Value.Equal(e.WitnessDestination.Value)
 		if err != nil {
 			return err

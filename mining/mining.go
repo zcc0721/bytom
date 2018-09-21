@@ -85,7 +85,6 @@ func NewBlockTemplate(c *protocol.Chain, txPool *protocol.TxPool, accountManager
 	//if err != nil {
 	//	return nil, err
 	//}
-
 	b = &types.Block{
 		BlockHeader: types.BlockHeader{
 			Version:           1,

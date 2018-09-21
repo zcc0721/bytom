@@ -1,6 +1,8 @@
 package protocol
 
 import (
+	"fmt"
+
 	log "github.com/sirupsen/logrus"
 
 	"github.com/bytom/errors"
@@ -86,13 +88,20 @@ func (c *Chain) connectBlock(block *types.Block) (err error) {
 	if err := utxoView.ApplyBlock(bcBlock, bcBlock.TransactionStatus); err != nil {
 		return err
 	}
-
+	fmt.Println(utxoView)
 	node := c.index.GetNode(&bcBlock.ID)
 	if err := c.setState(node, utxoView); err != nil {
 		return err
 	}
-
 	for _, tx := range block.Transactions {
+		for key, value := range tx.Entries {
+			switch value.(type) {
+			case *bc.Claim:
+				c.store.SetWithdrawSpent(&key)
+			default:
+				continue
+			}
+		}
 		c.txPool.RemoveTransaction(&tx.Tx.ID)
 	}
 	return nil

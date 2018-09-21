@@ -20,6 +20,9 @@ type Store interface {
 	LoadBlockIndex(uint64) (*state.BlockIndex, error)
 	SaveBlock(*types.Block, *bc.TransactionStatus) error
 	SaveChainStatus(*state.BlockNode, *state.UtxoViewpoint) error
+
+	IsWithdrawSpent(hash *bc.Hash) bool
+	SetWithdrawSpent(hash *bc.Hash)
 }
 
 // BlockStoreState represents the core's db status

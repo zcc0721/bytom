@@ -22,7 +22,6 @@ func getTransactionsUtxo(db dbm.DB, view *state.UtxoViewpoint, txs []*bc.Tx) err
 			if view.HasUtxo(&prevout) {
 				continue
 			}
-
 			data := db.Get(calcUtxoKey(&prevout))
 			if data == nil {
 				continue
@@ -54,7 +53,7 @@ func getUtxo(db dbm.DB, hash *bc.Hash) (*storage.UtxoEntry, error) {
 
 func saveUtxoView(batch dbm.Batch, view *state.UtxoViewpoint) error {
 	for key, entry := range view.Entries {
-		if entry.Spent && !entry.IsCoinBase {
+		if entry.Spent && !entry.IsCoinBase && !entry.IsCliam {
 			batch.Delete(calcUtxoKey(&key))
 			continue
 		}

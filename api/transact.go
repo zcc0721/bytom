@@ -487,10 +487,10 @@ func (a *API) createrawpegin(ctx context.Context, ins struct {
 	assetId.V3 = ins.RawTx.Outputs[nOut].AssetId.GetV3()
 
 	sourceID := bc.Hash{}
-	sourceID.V0 = ins.RawTx.ID.GetV0()
-	sourceID.V1 = ins.RawTx.ID.GetV1()
-	sourceID.V2 = ins.RawTx.ID.GetV2()
-	sourceID.V3 = ins.RawTx.ID.GetV3()
+	sourceID.V0 = ins.RawTx.OutputID(nOut).GetV0()
+	sourceID.V1 = ins.RawTx.OutputID(nOut).GetV1()
+	sourceID.V2 = ins.RawTx.OutputID(nOut).GetV2()
+	sourceID.V3 = ins.RawTx.OutputID(nOut).GetV3()
 	outputAccount := ins.RawTx.Outputs[nOut].Amount
 
 	txInput := types.NewClaimInputInput(nil, sourceID, assetId, outputAccount, uint64(nOut), cp.ControlProgram)
@@ -535,7 +535,7 @@ func (a *API) createrawpegin(ctx context.Context, ins struct {
 	txOutProof, _ := json.Marshal(MerkleBLock)
 	stack = append(stack, txOutProof)
 
-	tmpl.Transaction.Inputs[0].Peginwitness = stack
+	//	tmpl.Transaction.Inputs[0].Peginwitness = stack
 	txData.Inputs[0].Peginwitness = stack
 
 	//交易费估算

@@ -3,6 +3,7 @@ package types
 import (
 	"fmt"
 	"io"
+	"strconv"
 
 	"github.com/bytom/encoding/blockchain"
 	"github.com/bytom/errors"
@@ -141,7 +142,17 @@ func (t *TxInput) readFrom(r *blockchain.Reader) (err error) {
 	if t.AssetVersion, err = blockchain.ReadVarint63(r); err != nil {
 		return err
 	}
+	var isPegin []byte
+	if isPegin, err = blockchain.ReadVarstr31(r); err != nil {
+		return err
+	}
+	if t.IsPegin, err = strconv.ParseBool(string(isPegin)); err != nil {
+		return err
+	}
 
+	if t.Peginwitness, err = blockchain.ReadVarstrList(r); err != nil {
+		return err
+	}
 	var assetID bc.AssetID
 	t.CommitmentSuffix, err = blockchain.ReadExtensibleString(r, func(r *blockchain.Reader) error {
 		if t.AssetVersion != 1 {
@@ -236,7 +247,13 @@ func (t *TxInput) writeTo(w io.Writer) error {
 	if _, err := blockchain.WriteVarint63(w, t.AssetVersion); err != nil {
 		return errors.Wrap(err, "writing asset version")
 	}
+	if _, err := blockchain.WriteVarstr31(w, []byte(strconv.FormatBool(t.IsPegin))); err != nil {
+		return errors.Wrap(err, "writing isPegin")
+	}
 
+	if _, err := blockchain.WriteVarstrList(w, t.Peginwitness); err != nil {
+		return errors.Wrap(err, "writing pegin witness")
+	}
 	if _, err := blockchain.WriteExtensibleString(w, t.CommitmentSuffix, t.writeInputCommitment); err != nil {
 		return errors.Wrap(err, "writing input commitment")
 	}
@@ -271,7 +288,7 @@ func (t *TxInput) writeInputCommitment(w io.Writer) (err error) {
 		}
 		return inp.SpendCommitment.writeExtensibleString(w, inp.SpendCommitmentSuffix, t.AssetVersion)
 	case *ClaimInput:
-		if _, err = w.Write([]byte{SpendInputType}); err != nil {
+		if _, err = w.Write([]byte{ClainPeginInputType}); err != nil {
 			return err
 		}
 		return inp.SpendCommitment.writeExtensibleString(w, inp.SpendCommitmentSuffix, t.AssetVersion)
@@ -309,6 +326,7 @@ func (t *TxInput) writeInputWitness(w io.Writer) error {
 		return err
 	case *ClaimInput:
 		_, err := blockchain.WriteVarstrList(w, inp.Arguments)
+
 		return err
 	}
 	return nil
