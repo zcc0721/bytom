@@ -1,6 +1,8 @@
 package types
 
 import (
+	"fmt"
+
 	"github.com/bytom/protocol/bc/types/bytom"
 	"github.com/bytom/protocol/vm"
 	"github.com/bytom/protocol/vm/vmutil"
@@ -99,6 +101,7 @@ func mapTx(tx *TxData) (headerID bytom.Hash, hdr *bytom.TxHeader, entryMap map[b
 			}
 			prevout := bytom.NewOutput(src, prog, 0) // ordinal doesn't matter for prevouts, only for result outputs
 			prevoutID := addEntry(prevout)
+			fmt.Println("00000000000000: ", prevoutID.String())
 			// create entry for spend
 			spend := bytom.NewSpend(&prevoutID, uint64(i))
 			spend.WitnessArguments = inp.Arguments

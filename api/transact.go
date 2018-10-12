@@ -3,6 +3,8 @@ package api
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
 	"encoding/json"
 	"math"
 	"strconv"
@@ -12,9 +14,13 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/bytom/account"
+	"github.com/bytom/blockchain/signers"
 	"github.com/bytom/blockchain/txbuilder"
+	"github.com/bytom/blockchain/txbuilder/mainchain"
+	"github.com/bytom/common"
 	"github.com/bytom/consensus"
 	"github.com/bytom/consensus/segwit"
+	"github.com/bytom/crypto/ed25519/chainkd"
 	"github.com/bytom/crypto/sha3pool"
 	chainjson "github.com/bytom/encoding/json"
 	"github.com/bytom/errors"
@@ -24,6 +30,7 @@ import (
 	"github.com/bytom/protocol/bc/types"
 	"github.com/bytom/protocol/bc/types/bytom"
 	bytomtypes "github.com/bytom/protocol/bc/types/bytom/types"
+	"github.com/bytom/protocol/vm/vmutil"
 	"github.com/bytom/util"
 )
 
@@ -547,4 +554,232 @@ func (a *API) createrawpegin(ctx context.Context, ins struct {
 	//重设置Transaction
 	tmpl.Transaction = types.NewTx(*txData)
 	return tmpl, nil
+}
+
+func (a *API) buildMainChainTx(ins struct {
+	Utxo           account.UTXO       `json:"utxo"`
+	Tx             types.Tx           `json:"raw_transaction"`
+	RootXPubs      []chainkd.XPub     `json:"root_xpubs"`
+	Alias          string             `json:"alias"`
+	ControlProgram string             `json:"control_program"`
+	ClaimScript    chainjson.HexBytes `json:"claim_script"`
+}) Response {
+
+	var xpubs []chainkd.XPub
+	for _, xpub := range ins.RootXPubs {
+		// pub + scriptPubKey 生成一个随机数A
+		var tmp [32]byte
+		h := hmac.New(sha256.New, xpub[:])
+		h.Write(ins.ClaimScript)
+		tweak := h.Sum(tmp[:])
+		// pub +  A 生成一个新的公钥pub_new
+		chaildXPub := xpub.Child(tweak)
+		xpubs = append(xpubs, chaildXPub)
+	}
+	acc := &account.Account{}
+	var err error
+	if acc, err = a.wallet.AccountMgr.FindByAlias(ins.Alias); err != nil {
+		acc, err = a.wallet.AccountMgr.Create(xpubs, len(xpubs), ins.Alias)
+		if err != nil {
+			return NewErrorResponse(err)
+		}
+	}
+	ins.Utxo.ControlProgramIndex = acc.Signer.KeyIndex
+
+	txInput, sigInst, err := utxoToInputs(acc.Signer, &ins.Utxo)
+	if err != nil {
+		return NewErrorResponse(err)
+	}
+
+	builder := mainchain.NewBuilder(time.Now())
+	builder.AddInput(txInput, sigInst)
+	changeAmount := uint64(0)
+	for _, key := range ins.Tx.GetResultIds() {
+		output, err := ins.Tx.Output(*key)
+		if err != nil {
+			return NewErrorResponse(err)
+		}
+		var ctrlProgram chainjson.HexBytes
+		ctrlProgram = output.ControlProgram.Code
+		tmp, _ := ctrlProgram.MarshalText()
+		if string(tmp) == ins.ControlProgram {
+			assetID := bytom.AssetID{
+				V0: output.Source.Value.AssetId.GetV0(),
+				V1: output.Source.Value.AssetId.GetV1(),
+				V2: output.Source.Value.AssetId.GetV2(),
+				V3: output.Source.Value.AssetId.GetV3(),
+			}
+			out := bytomtypes.NewTxOutput(assetID, output.Source.Value.Amount, output.ControlProgram.Code)
+			builder.AddOutput(out)
+			changeAmount = ins.Utxo.Amount - output.Source.Value.Amount
+		}
+	}
+
+	if changeAmount > 0 {
+		u := ins.Utxo
+		assetID := bytom.AssetID{
+			V0: u.AssetID.GetV0(),
+			V1: u.AssetID.GetV1(),
+			V2: u.AssetID.GetV2(),
+			V3: u.AssetID.GetV3(),
+		}
+		out := bytomtypes.NewTxOutput(assetID, changeAmount, ins.Utxo.ControlProgram)
+		builder.AddOutput(out)
+	}
+
+	tmpl, tx, err := builder.Build()
+	if err != nil {
+		return NewErrorResponse(err)
+	}
+	//交易费估算
+	txGasResp, err := EstimateTxGasForMainchain(*tmpl)
+	if err != nil {
+		return NewErrorResponse(err)
+	}
+	for i, out := range tmpl.Transaction.Outputs {
+		if bytes.Equal(out.ControlProgram, ins.Utxo.ControlProgram) {
+			tx.Outputs[i].Amount = changeAmount - uint64(txGasResp.TotalNeu)
+		}
+	}
+	tmpl.Transaction = bytomtypes.NewTx(*tx)
+	return NewSuccessResponse(tmpl)
+}
+
+// UtxoToInputs convert an utxo to the txinput
+func utxoToInputs(signer *signers.Signer, u *account.UTXO) (*bytomtypes.TxInput, *mainchain.SigningInstruction, error) {
+	sourceID := bytom.Hash{
+		V0: u.SourceID.GetV0(),
+		V1: u.SourceID.GetV1(),
+		V2: u.SourceID.GetV2(),
+		V3: u.SourceID.GetV3(),
+	}
+
+	assetID := bytom.AssetID{
+		V0: u.AssetID.GetV0(),
+		V1: u.AssetID.GetV1(),
+		V2: u.AssetID.GetV2(),
+		V3: u.AssetID.GetV3(),
+	}
+
+	txInput := bytomtypes.NewSpendInput(nil, sourceID, assetID, u.Amount, u.SourcePos, u.ControlProgram)
+	sigInst := &mainchain.SigningInstruction{}
+	if signer == nil {
+		return txInput, sigInst, nil
+	}
+
+	path := signers.Path(signer, signers.AccountKeySpace, u.ControlProgramIndex)
+	if u.Address == "" {
+		sigInst.AddWitnessKeys(signer.XPubs, path, signer.Quorum)
+		return txInput, sigInst, nil
+	}
+
+	address, err := common.DecodeAddress(u.Address, &consensus.ActiveNetParams)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	switch address.(type) {
+	case *common.AddressWitnessPubKeyHash:
+		sigInst.AddRawWitnessKeys(signer.XPubs, path, signer.Quorum)
+		derivedXPubs := chainkd.DeriveXPubs(signer.XPubs, path)
+		derivedPK := derivedXPubs[0].PublicKey()
+		sigInst.WitnessComponents = append(sigInst.WitnessComponents, mainchain.DataWitness([]byte(derivedPK)))
+
+	case *common.AddressWitnessScriptHash:
+		sigInst.AddRawWitnessKeys(signer.XPubs, path, signer.Quorum)
+		//path := signers.Path(signer, signers.AccountKeySpace, u.ControlProgramIndex)
+		//derivedXPubs := chainkd.DeriveXPubs(signer.XPubs, path)
+		derivedXPubs := signer.XPubs
+		derivedPKs := chainkd.XPubKeys(derivedXPubs)
+		script, err := vmutil.P2SPMultiSigProgram(derivedPKs, signer.Quorum)
+		if err != nil {
+			return nil, nil, err
+		}
+		sigInst.WitnessComponents = append(sigInst.WitnessComponents, mainchain.DataWitness(script))
+
+	default:
+		return nil, nil, errors.New("unsupport address type")
+	}
+
+	return txInput, sigInst, nil
+}
+
+type signRespForMainchain struct {
+	Tx           *mainchain.Template `json:"transaction"`
+	SignComplete bool                `json:"sign_complete"`
+}
+
+func (a *API) signWithKey(ins struct {
+	Xprv        string             `json:"xprv"`
+	XPub        chainkd.XPub       `json:"xpub"`
+	Txs         mainchain.Template `json:"transaction"`
+	ClaimScript chainjson.HexBytes `json:"claim_script"`
+}) Response {
+	xprv := &chainkd.XPrv{}
+	if err := xprv.UnmarshalText([]byte(ins.Xprv)); err != nil {
+		return NewErrorResponse(err)
+	}
+	// pub + scriptPubKey 生成一个随机数A
+	var tmp [32]byte
+	h := hmac.New(sha256.New, ins.XPub[:])
+	h.Write(ins.ClaimScript)
+	tweak := h.Sum(tmp[:])
+	// pub +  A 生成一个新的公钥pub_new
+	privateKey := xprv.Child(tweak, false)
+
+	if err := sign(&ins.Txs, privateKey); err != nil {
+		return NewErrorResponse(err)
+	}
+	log.Info("Sign Transaction complete.")
+	log.Info(mainchain.SignProgress(&ins.Txs))
+	return NewSuccessResponse(&signRespForMainchain{Tx: &ins.Txs, SignComplete: mainchain.SignProgress(&ins.Txs)})
+}
+
+func sign(tmpl *mainchain.Template, xprv chainkd.XPrv) error {
+	for i, sigInst := range tmpl.SigningInstructions {
+		for j, wc := range sigInst.WitnessComponents {
+			switch sw := wc.(type) {
+			case *mainchain.SignatureWitness:
+				err := sw.Sign(tmpl, uint32(i), xprv)
+				if err != nil {
+					return errors.WithDetailf(err, "adding signature(s) to signature witness component %d of input %d", j, i)
+				}
+			case *mainchain.RawTxSigWitness:
+				err := sw.Sign(tmpl, uint32(i), xprv)
+				if err != nil {
+					return errors.WithDetailf(err, "adding signature(s) to raw-signature witness component %d of input %d", j, i)
+				}
+			}
+		}
+	}
+	return materializeWitnesses(tmpl)
+}
+
+func materializeWitnesses(txTemplate *mainchain.Template) error {
+	msg := txTemplate.Transaction
+
+	if msg == nil {
+		return errors.Wrap(txbuilder.ErrMissingRawTx)
+	}
+
+	if len(txTemplate.SigningInstructions) > len(msg.Inputs) {
+		return errors.Wrap(txbuilder.ErrBadInstructionCount)
+	}
+
+	for i, sigInst := range txTemplate.SigningInstructions {
+		if msg.Inputs[sigInst.Position] == nil {
+			return errors.WithDetailf(txbuilder.ErrBadTxInputIdx, "signing instruction %d references missing tx input %d", i, sigInst.Position)
+		}
+
+		var witness [][]byte
+		for j, wc := range sigInst.WitnessComponents {
+			err := wc.Materialize(&witness)
+			if err != nil {
+				return errors.WithDetailf(err, "error in witness component %d of input %d", j, i)
+			}
+		}
+		msg.SetInputArguments(sigInst.Position, witness)
+	}
+
+	return nil
 }

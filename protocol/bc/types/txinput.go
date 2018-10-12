@@ -3,7 +3,6 @@ package types
 import (
 	"fmt"
 	"io"
-	"strconv"
 
 	"github.com/bytom/encoding/blockchain"
 	"github.com/bytom/errors"
@@ -22,7 +21,6 @@ type (
 	// TxInput is the top level struct of tx input.
 	TxInput struct {
 		AssetVersion uint64
-		IsPegin      bool
 		TypedInput
 		CommitmentSuffix []byte
 		WitnessSuffix    []byte
@@ -142,13 +140,6 @@ func (t *TxInput) readFrom(r *blockchain.Reader) (err error) {
 	if t.AssetVersion, err = blockchain.ReadVarint63(r); err != nil {
 		return err
 	}
-	var isPegin []byte
-	if isPegin, err = blockchain.ReadVarstr31(r); err != nil {
-		return err
-	}
-	if t.IsPegin, err = strconv.ParseBool(string(isPegin)); err != nil {
-		return err
-	}
 
 	if t.Peginwitness, err = blockchain.ReadVarstrList(r); err != nil {
 		return err
@@ -246,9 +237,6 @@ func (t *TxInput) readFrom(r *blockchain.Reader) (err error) {
 func (t *TxInput) writeTo(w io.Writer) error {
 	if _, err := blockchain.WriteVarint63(w, t.AssetVersion); err != nil {
 		return errors.Wrap(err, "writing asset version")
-	}
-	if _, err := blockchain.WriteVarstr31(w, []byte(strconv.FormatBool(t.IsPegin))); err != nil {
-		return errors.Wrap(err, "writing isPegin")
 	}
 
 	if _, err := blockchain.WriteVarstrList(w, t.Peginwitness); err != nil {
