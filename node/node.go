@@ -214,8 +214,7 @@ func initActiveNetParams(config *cfg.Config) {
 	if fedpegXPubs := strings.Split(config.Side.FedpegXPubs, ","); len(fedpegXPubs) > 0 {
 		for _, xpubStr := range fedpegXPubs {
 			var xpub chainkd.XPub
-			//xpub.UnmarshalText([]byte(xpubStr))
-			copy(xpub[:], []byte(xpubStr))
+			xpub.UnmarshalText([]byte(xpubStr))
 			federationRedeemXPubs = append(federationRedeemXPubs, xpub)
 		}
 	}

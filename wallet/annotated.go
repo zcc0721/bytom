@@ -211,7 +211,6 @@ func (w *Wallet) BuildAnnotatedInput(tx *types.Tx, i uint32) *query.AnnotatedInp
 		in.ControlProgram = orig.ControlProgram()
 		in.Address = w.getAddressFromControlProgram(in.ControlProgram)
 		in.SpentOutputID = e.SpentOutputId
-		in.IsPegin = orig.IsPegin
 		in.Peginwitness = orig.Peginwitness
 		arguments := orig.Arguments()
 		for _, arg := range arguments {

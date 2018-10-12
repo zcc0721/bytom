@@ -295,6 +295,109 @@ func (a *API) getRawTransaction(ins struct {
 	return NewSuccessResponse(resp)
 }
 
+type GetSideRawTransationResp struct {
+	Tx        *types.Tx `json:"raw_transaction"`
+	BlockHash bc.Hash   `json:"block_hash"`
+}
+
+func (a *API) getSideRawTransaction(ins struct {
+	BlockHeight uint64 `json:"block_height"`
+	TxID        string `json:"tx_id"`
+}) Response {
+	block, err := a.chain.GetBlockByHeight(ins.BlockHeight)
+	if err != nil {
+		return NewErrorResponse(err)
+	}
+
+	var rawTransaction *types.Tx
+
+	txID := bc.Hash{}
+	txID.UnmarshalText([]byte(ins.TxID))
+
+	for _, tx := range block.Transactions {
+		if tx.ID.String() == txID.String() {
+			rawTransaction = tx
+			break
+		}
+	}
+	if rawTransaction == nil {
+		return NewErrorResponse(errors.New("raw transaction do not find"))
+	}
+	resp := GetSideRawTransationResp{Tx: rawTransaction, BlockHash: block.Hash()}
+	return NewSuccessResponse(resp)
+}
+
+type utxoResp struct {
+	Utxo account.UTXO `json:"utxo"`
+}
+
+func (a *API) getUnspentOutputs(ins struct {
+	RawBlock string `json:"raw_block"`
+	TxID     string `json:"tx_id"`
+	ID       string `json:"id"`
+	Address  string `json:"address"`
+}) Response {
+	var rawTransaction *bytomtypes.Tx
+	block := &bytomtypes.Block{}
+	err := block.UnmarshalText([]byte(ins.RawBlock))
+	if err != nil {
+		return NewErrorResponse(err)
+	}
+
+	txID := bc.Hash{}
+	txID.UnmarshalText([]byte(ins.TxID))
+
+	for _, tx := range block.Transactions {
+		if tx.ID.String() == txID.String() {
+			rawTransaction = tx
+			break
+		}
+	}
+	utxo := account.UTXO{}
+
+	for i, out := range rawTransaction.Outputs {
+		key := rawTransaction.ResultIds[i]
+		if key.String() == ins.ID {
+			outPut, err := rawTransaction.Output(*key)
+			if err != nil {
+				continue
+			}
+			outputID := bc.Hash{
+				V0: key.GetV0(),
+				V1: key.GetV1(),
+				V2: key.GetV2(),
+				V3: key.GetV3(),
+			}
+
+			assetID := bc.AssetID{
+				V0: out.AssetAmount.AssetId.GetV0(),
+				V1: out.AssetAmount.AssetId.GetV1(),
+				V2: out.AssetAmount.AssetId.GetV2(),
+				V3: out.AssetAmount.AssetId.GetV3(),
+			}
+
+			sourceID := bc.Hash{
+				V0: outPut.Source.Ref.GetV0(),
+				V1: outPut.Source.Ref.GetV1(),
+				V2: outPut.Source.Ref.GetV2(),
+				V3: outPut.Source.Ref.GetV3(),
+			}
+			utxo = account.UTXO{
+				OutputID:       outputID,
+				AssetID:        assetID,
+				Amount:         out.Amount,
+				ControlProgram: out.ControlProgram,
+				SourceID:       sourceID,
+				SourcePos:      outPut.Source.Position,
+				ValidHeight:    block.Height,
+				Address:        ins.Address,
+			}
+		}
+	}
+
+	return NewSuccessResponse(&utxoResp{Utxo: utxo})
+}
+
 // POST /list-unspent-outputs
 func (a *API) listUnspentOutputs(ctx context.Context, filter struct {
 	AccountID     string `json:"account_id"`
