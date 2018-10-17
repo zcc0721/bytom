@@ -192,7 +192,7 @@ def send_to_mainchain():
     tx_id  = request.json['side_tx_id'].encode('utf-8')
     alias = request.json['alias'].encode('utf-8')
     #root_xpubs = json.dumps(request.json['root_xpubs']).strip('{}')
-    root_xpubs = ""
+    root_xpubs = "["
     control_program = request.json['control_program'].encode('utf-8')
     key_pair = {}
     f = open("key_pair","r") 
@@ -209,7 +209,7 @@ def send_to_mainchain():
         if index < num:
             root_xpubs = root_xpubs + ","
 
-
+    root_xpubs = root_xpubs + "]"
     # 获取侧链raw transaction
     body_json = {"tx_id": tx_id,"block_height": block_height}
     response = connSide.request("/get-side-raw-transaction",body_json)
@@ -230,7 +230,6 @@ def send_to_mainchain():
     if resp_json['status'] == 'success':
         tmpl = json.dumps(resp_json['data'])
     elif resp_json['status'] == 'fail':
-        print resp_json
         return json_contents(jsonify(code=-1, msg="get-raw-transaction: " + resp_json['msg']))
     else:
         return json_contents(jsonify(code=-1, msg="get raw transaction fail"))
