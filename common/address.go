@@ -292,6 +292,11 @@ func NewAddressWitnessScriptHash(witnessProg []byte, param *consensus.Params) (*
 	return newAddressWitnessScriptHash(param.Bech32HRPSegwit, witnessProg)
 }
 
+// NewAddressWitnessScriptHash returns a new AddressWitnessPubKeyHash.
+func NewPeginAddressWitnessScriptHash(witnessProg []byte, param *consensus.Params) (*AddressWitnessScriptHash, error) {
+	return newAddressWitnessScriptHash(param.BytomBech32HRPSegwit, witnessProg)
+}
+
 // newAddressWitnessScriptHash is an internal helper function to create an
 // AddressWitnessScriptHash with a known human-readable part, rather than
 // looking it up through its parameters.

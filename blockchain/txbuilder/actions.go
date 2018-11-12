@@ -4,6 +4,7 @@ import (
 	"context"
 	stdjson "encoding/json"
 	"errors"
+	"strings"
 
 	"github.com/bytom/common"
 	"github.com/bytom/consensus"
@@ -17,6 +18,14 @@ import (
 func DecodeControlAddressAction(data []byte) (Action, error) {
 	a := new(controlAddressAction)
 	err := stdjson.Unmarshal(data, a)
+	oneIndex := strings.LastIndexByte(a.Address, '1')
+	if oneIndex > 1 {
+		prefix := a.Address[:oneIndex+1]
+		prefix = strings.ToLower(prefix)
+		if prefix == consensus.ActiveNetParams.BytomBech32HRPSegwit+"1" {
+			a.Address = "s" + a.Address
+		}
+	}
 	return a, err
 }
 
