@@ -6,8 +6,15 @@ $(function(){
       method: 'post',  //get or post
       url: window.url + '/api/create_key_pair',
       success: function(data){
-        console.log(data);
-        layer.msg('创建成功')
+        if (data.code == 200) {
+          console.log(data);
+          layer.msg('创建成功')
+        }
+        else {
+          console.log(data);
+          layer.msg('创建失败', data.msg)
+        }
+ 
         //appendKey('#keyContainer');  // 创建成功后传入返回数据调用，此处示例
       },
       error: function(err){
@@ -68,8 +75,14 @@ $(function(){
       contentType: 'application/json',
       data: JSON.stringify(params),
       success: function(data){
-        console.log(data);
-        layer.msg('创建成功')
+        if(data.code == 200){
+          console.log(data);
+          layer.msg('创建成功')
+        }
+        else {
+            console.log(data);
+            layer.msg('创建失败', data.msg)
+        }
       },
       error: function(err){
         layer.alert('创建失败' + err);
@@ -131,8 +144,14 @@ $(function(){
       url: window.url + '/api/claim_tx',
       data: JSON.stringify(obj),
       success: function(res){
-        console.log(res);
-        layer.msg('cliam tx success');
+        if(res.code == 200){
+          console.log(res);
+          layer.msg('cliam tx success');
+        }
+        else {
+            console.log(data);
+            layer.msg('创建失败', data.msg)
+        }
       },
       error: function(err){
         layer.alert('发送交易失败' + err);
@@ -165,8 +184,14 @@ $(function(){
       url: window.url + '/api/send_to_mainchain',
       data: JSON.stringify(obj),
       success: function(res){
-        console.log(res);
-        layer.msg('send to mainchain success');
+        if(res.code){
+          console.log(res);
+          layer.msg('send to mainchain success');
+        }
+        else {
+            console.log(data);
+            layer.msg('创建失败', data.msg)
+        }
       },
       error: function(err){
         layer.alert('发送交易失败' + err);
