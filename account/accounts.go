@@ -185,7 +185,7 @@ func (m *Manager) CreatePeginAddress(accountID string, change bool) (string, []b
 
 	scriptHash := crypto.Sha256(federationRedeemScript)
 
-	address, err := common.NewAddressWitnessScriptHash(scriptHash, &consensus.ActiveNetParams)
+	address, err := common.NewPeginAddressWitnessScriptHash(scriptHash, &consensus.ActiveNetParams)
 	if err != nil {
 		return "", nil, err
 	}
