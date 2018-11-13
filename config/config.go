@@ -24,6 +24,7 @@ type Config struct {
 	Web       *WebConfig          `mapstructure:"web"`
 	Simd      *SimdConfig         `mapstructure:"simd"`
 	Side      *SideChainConfig    `mapstructure:"side"`
+	Websocket *WebsocketConfig    `mapstructure:"ws"`
 	MainChain *MainChainRpcConfig `mapstructure:"mainchain"`
 }
 

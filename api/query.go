@@ -336,6 +336,7 @@ func (a *API) getUnspentOutputs(ins struct {
 	TxID     string `json:"tx_id"`
 	ID       string `json:"id"`
 	Address  string `json:"address"`
+	Change   bool   `json:"change"`
 }) Response {
 	var rawTransaction *bytomtypes.Tx
 	block := &bytomtypes.Block{}
@@ -391,6 +392,7 @@ func (a *API) getUnspentOutputs(ins struct {
 				SourcePos:      outPut.Source.Position,
 				ValidHeight:    block.Height,
 				Address:        ins.Address,
+				Change:         ins.Change,
 			}
 		}
 	}

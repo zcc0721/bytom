@@ -64,7 +64,7 @@ func init() {
 	//mainchaintoken
 	runNodeCmd.Flags().String("mainchain.mainchain_token", config.MainChain.MainchainToken, "The rpc token that the daemon will use to connect to validate peg-ins, if enabled.")
 
-	//mainchaintoken
+	//signer
 	runNodeCmd.Flags().String("signer", config.Signer, "The signer corresponds to xpub of signblock")
 	runNodeCmd.Flags().String("side.sign_block_xpubs", config.Side.SignBlockXPubs, "Change federated peg to use a different xpub.")
 
