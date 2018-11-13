@@ -667,7 +667,7 @@ func utxoToInputs(signer *signers.Signer, u *account.UTXO) (*bytomtypes.TxInput,
 		return txInput, sigInst, nil
 	}
 
-	path := signers.Path(signer, signers.AccountKeySpace, u.ControlProgramIndex)
+	path, _ := signers.Path(signer, signers.AccountKeySpace, u.Change, u.ControlProgramIndex)
 	if u.Address == "" {
 		sigInst.AddWitnessKeys(signer.XPubs, path, signer.Quorum)
 		return txInput, sigInst, nil
