@@ -39,6 +39,7 @@ func DefaultConfig() *Config {
 		Simd:       DefaultSimdConfig(),
 		Side:       DefaultSideChainConfig(),
 		MainChain:  DefaultMainChainRpc(),
+		Websocket:  DefaultWebsocketConfig(),
 	}
 }
 

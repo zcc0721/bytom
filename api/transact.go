@@ -579,7 +579,7 @@ func (a *API) buildMainChainTx(ins struct {
 	acc := &account.Account{}
 	var err error
 	if acc, err = a.wallet.AccountMgr.FindByAlias(ins.Alias); err != nil {
-		acc, err = a.wallet.AccountMgr.Create(xpubs, len(xpubs), ins.Alias)
+		acc, err = a.wallet.AccountMgr.Create(xpubs, len(xpubs), ins.Alias, signers.BIP0044)
 		if err != nil {
 			return NewErrorResponse(err)
 		}

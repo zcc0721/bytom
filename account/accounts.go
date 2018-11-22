@@ -334,6 +334,44 @@ func (m *Manager) deleteAccountUtxos(accountID string) error {
 	return nil
 }
 
+func (m *Manager) CreatePeginAddress(accountID string, change bool) (string, []byte, error) {
+	// 通过配置获取
+	claimCtrlProg, _ := m.CreateAddress(accountID, change)
+	claimScript := claimCtrlProg.ControlProgram
+
+	federationRedeemScript := vmutil.CalculateContract(consensus.ActiveNetParams.FedpegXPubs, claimScript)
+
+	scriptHash := crypto.Sha256(federationRedeemScript)
+
+	address, err := common.NewPeginAddressWitnessScriptHash(scriptHash, &consensus.ActiveNetParams)
+	if err != nil {
+		return "", nil, err
+	}
+
+	return address.EncodeAddress(), claimScript, nil
+
+}
+
+func (m *Manager) GetPeginControlPrograms(claimScript []byte) (string, []byte) {
+	federationRedeemScript := vmutil.CalculateContract(consensus.ActiveNetParams.FedpegXPubs, claimScript)
+	scriptHash := crypto.Sha256(federationRedeemScript)
+
+	address, err := common.NewAddressWitnessScriptHash(scriptHash, &consensus.ActiveNetParams)
+	if err != nil {
+		return "", nil
+	}
+
+	redeemContract := address.ScriptAddress()
+
+	program := []byte{}
+	program, err = vmutil.P2WSHProgram(redeemContract)
+	if err != nil {
+		return "", nil
+	}
+
+	return address.EncodeAddress(), program
+}
+
 // DeleteAccount deletes the account's ID or alias matching account ID.
 func (m *Manager) DeleteAccount(accountID string) (err error) {
 	m.accountMu.Lock()
