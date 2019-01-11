@@ -184,6 +184,12 @@ func checkValid(vs *validationState, e bc.Entry) (err error) {
 				return errors.Wrapf(bc.ErrMissingEntry, "entry for bytom input %x not found", BTMInputID)
 			}
 
+			vs2 := *vs
+			vs2.entryID = BTMInputID
+			if err := checkValid(&vs2, e); err != nil {
+				return errors.Wrap(err, "checking gas input")
+			}
+
 			// check contract program
 			if res, ok := e.(*bc.Spend); ok {
 				if res.SpentOutputId == nil {
@@ -195,15 +201,16 @@ func checkValid(vs *validationState, e bc.Entry) (err error) {
 					return errors.Wrap(err, "getting spend prevout")
 				}
 
+				var prog []byte
 				if !segwit.IsP2WScript(spentOutput.ControlProgram.Code) {
+					prog = spentOutput.ControlProgram.Code
+				} else if segwit.IsP2WSHScript(spentOutput.ControlProgram.Code) && len(res.WitnessArguments) != 0 {
+					prog = res.WitnessArguments[len(res.WitnessArguments)-1]
+				}
+
+				if prog != nil && segwit.IsContainCheckOutput(prog) {
 					contractFalg = true
 				}
-			}
-
-			vs2 := *vs
-			vs2.entryID = BTMInputID
-			if err := checkValid(&vs2, e); err != nil {
-				return errors.Wrap(err, "checking gas input")
 			}
 		}
 

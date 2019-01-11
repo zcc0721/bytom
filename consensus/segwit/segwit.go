@@ -51,6 +51,31 @@ func IsP2WSHScript(prog []byte) bool {
 	return insts[1].Op == vm.OP_DATA_32 && len(insts[1].Data) == consensus.PayToWitnessScriptHashDataSize
 }
 
+func IsContainCheckOutput(prog []byte) bool {
+	insts, err := vm.ParseProgram(prog)
+	if err != nil {
+		return false
+	}
+
+	for pos, inst := range insts {
+		if inst.Op == vm.OP_CHECKOUTPUT {
+			return true
+		} else if inst.Op == vm.OP_CHECKPREDICATE && (pos-2) >= 0 {
+			instructions, err := vm.ParseProgram(insts[pos-2].Data)
+			if err != nil {
+				return false
+			}
+
+			for _, instruction := range instructions {
+				if instruction.Op == vm.OP_CHECKOUTPUT {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
 func ConvertP2PKHSigProgram(prog []byte) ([]byte, error) {
 	insts, err := vm.ParseProgram(prog)
 	if err != nil {
