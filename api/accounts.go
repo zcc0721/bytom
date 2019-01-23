@@ -133,6 +133,7 @@ func (a SortByIndex) Less(i, j int) bool { return a[i].KeyIndex < a[j].KeyIndex 
 func (a *API) listAddresses(ctx context.Context, ins struct {
 	AccountID    string `json:"account_id"`
 	AccountAlias string `json:"account_alias"`
+	Address      string `json:"address"`
 	From         uint   `json:"from"`
 	Count        uint   `json:"count"`
 }) Response {
@@ -159,7 +160,7 @@ func (a *API) listAddresses(ctx context.Context, ins struct {
 
 	addresses := []addressResp{}
 	for _, cp := range cps {
-		if cp.Address == "" || cp.AccountID != target.ID {
+		if cp.Address == "" || cp.AccountID != target.ID || (ins.Address != "" && ins.Address != cp.Address) {
 			continue
 		}
 		addresses = append(addresses, addressResp{

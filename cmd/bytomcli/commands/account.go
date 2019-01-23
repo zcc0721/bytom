@@ -160,14 +160,19 @@ var createAccountReceiverCmd = &cobra.Command{
 }
 
 var listAddressesCmd = &cobra.Command{
-	Use:   "list-addresses",
+	Use:   "list-addresses [address]",
 	Short: "List the account addresses",
-	Args:  cobra.NoArgs,
+	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		var ins = struct {
 			AccountID    string `json:"account_id"`
 			AccountAlias string `json:"account_alias"`
+			Address      string `json:"address"`
 		}{AccountID: accountID, AccountAlias: accountAlias}
+
+		if len(args) != 0 {
+			ins.Address = args[0]
+		}
 
 		data, exitCode := util.ClientCall("/list-addresses", &ins)
 		if exitCode != util.Success {
