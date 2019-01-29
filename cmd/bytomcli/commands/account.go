@@ -162,7 +162,7 @@ var createAccountReceiverCmd = &cobra.Command{
 var listAddressesCmd = &cobra.Command{
 	Use:   "list-addresses [address]",
 	Short: "List the account addresses",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.RangeArgs(0, 1),
 	Run: func(cmd *cobra.Command, args []string) {
 		var ins = struct {
 			AccountID    string `json:"account_id"`
