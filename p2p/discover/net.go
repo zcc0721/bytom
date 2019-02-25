@@ -8,11 +8,11 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/tendermint/go-crypto"
 	"github.com/tendermint/go-wire"
 	"golang.org/x/crypto/sha3"
 
 	"github.com/bytom/common"
+	"github.com/bytom/crypto/ed25519"
 	"github.com/bytom/p2p/netutil"
 )
 
@@ -114,8 +114,9 @@ type timeoutEvent struct {
 	node *Node
 }
 
-func newNetwork(conn transport, ourPubkey crypto.PubKeyEd25519, dbPath string, netrestrict *netutil.Netlist) (*Network, error) {
-	ourID := NodeID(ourPubkey)
+func newNetwork(conn transport, ourPubkey ed25519.PublicKey, dbPath string, netrestrict *netutil.Netlist) (*Network, error) {
+	var ourID NodeID
+	copy(ourID[:], ourPubkey[:nodeIDBits])
 
 	var db *nodeDB
 	if dbPath != "<no database>" {
@@ -165,6 +166,10 @@ func (net *Network) Close() {
 // The returned node should not be modified by the caller.
 func (net *Network) Self() *Node {
 	return net.tab.self
+}
+
+func (net *Network) selfIP() net.IP {
+	return net.tab.self.IP
 }
 
 // ReadRandomNodes fills the given slice with random nodes from the
