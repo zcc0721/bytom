@@ -73,7 +73,7 @@ func ValidateBlockHeader(b *bc.Block, parent *state.BlockNode) error {
 		return errors.WithDetailf(errMismatchedBlock, "previous block ID %x, current block wants %x", parent.Hash.Bytes(), b.PreviousBlockId.Bytes())
 	}
 	if err := checkBlockTime(b, parent); err != nil {
-		return err
+
 	}
 	if !difficulty.CheckProofOfWork(&b.ID, parent.CalcNextSeed(), b.BlockHeader.Bits) {
 		return errWorkProof
