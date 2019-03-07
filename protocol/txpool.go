@@ -20,6 +20,7 @@ import (
 const (
 	MsgNewTx = iota
 	MsgRemoveTx
+	logModule = "protocol"
 )
 
 var (
@@ -35,6 +36,8 @@ var (
 	ErrTransactionNotExist = errors.New("transaction are not existed in the mempool")
 	// ErrPoolIsFull indicates the pool is full
 	ErrPoolIsFull = errors.New("transaction pool reach the max number")
+	// ErrDustTx indicates transaction is dust tx
+	ErrDustTx = errors.New("transaction is dust tx")
 )
 
 type TxMsgEvent struct{ TxMsg *TxPoolMsg }
@@ -138,7 +141,7 @@ func (tp *TxPool) RemoveTransaction(txHash *bc.Hash) {
 
 	atomic.StoreInt64(&tp.lastUpdated, time.Now().Unix())
 	tp.eventDispatcher.Post(TxMsgEvent{TxMsg: &TxPoolMsg{TxDesc: txD, MsgType: MsgRemoveTx}})
-	log.WithField("tx_id", txHash).Debug("remove tx from mempool")
+	log.WithFields(log.Fields{"module": logModule, "tx_id": txHash}).Debug("remove tx from mempool")
 }
 
 // GetTransaction return the TxDesc by hash
@@ -189,8 +192,20 @@ func (tp *TxPool) HaveTransaction(txHash *bc.Hash) bool {
 	return tp.IsTransactionInPool(txHash) || tp.IsTransactionInErrCache(txHash)
 }
 
-// ProcessTransaction is the main entry for txpool handle new tx
-func (tp *TxPool) ProcessTransaction(tx *types.Tx, statusFail bool, height, fee uint64) (bool, error) {
+func isTransactionNoBtmInput(tx *types.Tx) bool {
+	for _, input := range tx.TxData.Inputs {
+		if input.AssetID() == *consensus.BTMAssetID {
+			return false
+		}
+	}
+	return true
+}
+
+func (tp *TxPool) IsDust(tx *types.Tx) bool {
+	return isTransactionNoBtmInput(tx)
+}
+
+func (tp *TxPool) processTransaction(tx *types.Tx, statusFail bool, height, fee uint64) (bool, error) {
 	tp.mtx.Lock()
 	defer tp.mtx.Unlock()
 
@@ -216,6 +231,15 @@ func (tp *TxPool) ProcessTransaction(tx *types.Tx, statusFail bool, height, fee 
 
 	tp.processOrphans(txD)
 	return false, nil
+}
+
+// ProcessTransaction is the main entry for txpool handle new tx, ignore dust tx.
+func (tp *TxPool) ProcessTransaction(tx *types.Tx, statusFail bool, height, fee uint64) (bool, error) {
+	if tp.IsDust(tx) {
+		log.WithFields(log.Fields{"module": logModule, "tx_id": tx.ID.String()}).Warn("dust tx")
+		return false, nil
+	}
+	return tp.processTransaction(tx, statusFail, height, fee)
 }
 
 func (tp *TxPool) addOrphan(txD *TxDesc, requireParents []*bc.Hash) error {
@@ -255,7 +279,7 @@ func (tp *TxPool) addTransaction(txD *TxDesc) error {
 
 	atomic.StoreInt64(&tp.lastUpdated, time.Now().Unix())
 	tp.eventDispatcher.Post(TxMsgEvent{TxMsg: &TxPoolMsg{TxDesc: txD, MsgType: MsgNewTx}})
-	log.WithField("tx_id", tx.ID.String()).Debug("Add tx to mempool")
+	log.WithFields(log.Fields{"module": logModule, "tx_id": tx.ID.String()}).Debug("Add tx to mempool")
 	return nil
 }
 
@@ -302,7 +326,7 @@ func (tp *TxPool) processOrphans(txD *TxDesc) {
 		processOrphan := processOrphans[0]
 		requireParents, err := tp.checkOrphanUtxos(processOrphan.Tx)
 		if err != nil {
-			log.WithField("err", err).Error("processOrphans got unexpect error")
+			log.WithFields(log.Fields{"module": logModule, "err": err}).Error("processOrphans got unexpect error")
 			continue
 		}
 

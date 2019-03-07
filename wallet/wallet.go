@@ -113,7 +113,19 @@ func (w *Wallet) memPoolTxQueryLoop() {
 //return initial wallet info and err
 func (w *Wallet) loadWalletInfo() error {
 	if rawWallet := w.DB.Get(walletKey); rawWallet != nil {
-		return json.Unmarshal(rawWallet, &w.status)
+		if err := json.Unmarshal(rawWallet, &w.status); err != nil {
+			return err
+		}
+
+		//handle the case than use replace the coreDB during status in fork chain
+		if w.chain.BlockExist(&w.status.BestHash) {
+			return nil
+		}
+
+		log.WithFields(log.Fields{"module": logModule}).Warn("reset the wallet status due to core doesn't have wallet best block")
+		w.deleteAccountTxs()
+		w.deleteUtxos()
+		w.status = StatusInfo{}
 	}
 
 	block, err := w.chain.GetBlockByHeight(0)
@@ -126,7 +138,7 @@ func (w *Wallet) loadWalletInfo() error {
 func (w *Wallet) commitWalletInfo(batch db.Batch) error {
 	rawWallet, err := json.Marshal(w.status)
 	if err != nil {
-		log.WithField("err", err).Error("save wallet info")
+		log.WithFields(log.Fields{"module": logModule, "err": err}).Error("save wallet info")
 		return err
 	}
 
@@ -203,12 +215,12 @@ func (w *Wallet) walletUpdater() {
 		for !w.chain.InMainChain(w.status.BestHash) {
 			block, err := w.chain.GetBlockByHash(&w.status.BestHash)
 			if err != nil {
-				log.WithField("err", err).Error("walletUpdater GetBlockByHash")
+				log.WithFields(log.Fields{"module": logModule, "err": err}).Error("walletUpdater GetBlockByHash")
 				return
 			}
 
 			if err := w.DetachBlock(block); err != nil {
-				log.WithField("err", err).Error("walletUpdater detachBlock stop")
+				log.WithFields(log.Fields{"module": logModule, "err": err}).Error("walletUpdater detachBlock stop")
 				return
 			}
 		}
@@ -220,7 +232,7 @@ func (w *Wallet) walletUpdater() {
 		}
 
 		if err := w.AttachBlock(block); err != nil {
-			log.WithField("err", err).Error("walletUpdater AttachBlock stop")
+			log.WithFields(log.Fields{"module": logModule, "err": err}).Error("walletUpdater AttachBlock stop")
 			return
 		}
 	}
@@ -253,6 +265,22 @@ func (w *Wallet) deleteAccountTxs() {
 		storeBatch.Delete(txIndexIter.Key())
 	}
 
+	storeBatch.Write()
+}
+
+func (w *Wallet) deleteUtxos() {
+	storeBatch := w.DB.NewBatch()
+	ruIter := w.DB.IteratorPrefix([]byte(account.UTXOPreFix))
+	defer ruIter.Release()
+	for ruIter.Next() {
+		storeBatch.Delete(ruIter.Key())
+	}
+
+	suIter := w.DB.IteratorPrefix([]byte(account.SUTXOPrefix))
+	defer suIter.Release()
+	for suIter.Next() {
+		storeBatch.Delete(suIter.Key())
+	}
 	storeBatch.Write()
 }
 

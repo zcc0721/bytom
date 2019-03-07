@@ -326,11 +326,7 @@ func (sm *SyncManager) handleStatusResponseMsg(basePeer BasePeer, msg *StatusRes
 	}
 
 	if genesisHash := msg.GetGenesisHash(); sm.genesisHash != *genesisHash {
-		log.WithFields(log.Fields{
-			"module":         logModule,
-			"remote genesis": genesisHash.String(),
-			"local genesis":  sm.genesisHash.String(),
-		}).Warn("fail hand shake due to differnt genesis")
+		log.WithFields(log.Fields{"module": logModule, "remote genesis": genesisHash.String(), "local genesis": sm.genesisHash.String()}).Warn("fail hand shake due to differnt genesis")
 		return
 	}
 
@@ -344,7 +340,7 @@ func (sm *SyncManager) handleTransactionMsg(peer *peer, msg *TransactionMessage)
 		return
 	}
 
-	if isOrphan, err := sm.chain.ValidateTx(tx); err != nil && !isOrphan {
+	if isOrphan, err := sm.chain.ValidateTx(tx); err != nil && err != core.ErrDustTx && !isOrphan {
 		sm.peers.addBanScore(peer.ID(), 10, 0, "fail on validate tx transaction")
 	}
 }
