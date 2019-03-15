@@ -1,6 +1,9 @@
 package types
 
 import (
+	"encoding/hex"
+	"fmt"
+
 	"github.com/bytom/crypto/sha3pool"
 	"github.com/bytom/protocol/bc"
 )
@@ -44,8 +47,11 @@ func (ii *IssuanceInput) AssetID() bc.AssetID {
 func (ii *IssuanceInput) AssetDefinitionHash() (defhash bc.Hash) {
 	sha := sha3pool.Get256()
 	defer sha3pool.Put256(sha)
+	fmt.Println("(ii *IssuanceInput) AssetDefinitionHash()")
+	fmt.Println("AssetDefinition is:", hex.EncodeToString(ii.AssetDefinition[:]))
 	sha.Write(ii.AssetDefinition)
 	defhash.ReadFrom(sha)
+	fmt.Println("defhash:", defhash.String())
 	return defhash
 }
 
@@ -53,7 +59,10 @@ func (ii *IssuanceInput) AssetDefinitionHash() (defhash bc.Hash) {
 func (ii *IssuanceInput) NonceHash() (hash bc.Hash) {
 	sha := sha3pool.Get256()
 	defer sha3pool.Put256(sha)
+	fmt.Println("(ii *IssuanceInput) NonceHash()")
+	fmt.Println("nonce is:", hex.EncodeToString(ii.Nonce[:]))
 	sha.Write(ii.Nonce)
 	hash.ReadFrom(sha)
+	fmt.Println("issue nonce hash:", hash.String())
 	return hash
 }

@@ -89,6 +89,7 @@ func (h *Hash) ReadFrom(r io.Reader) (int64, error) {
 	if err != nil {
 		return int64(n), err
 	}
+	fmt.Println("b32:", hex.EncodeToString(b32[:]))
 	*h = NewHash(b32)
 	return int64(n), nil
 }

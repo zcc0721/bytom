@@ -121,6 +121,7 @@ func (t *TxInput) SpentOutputID() (o bc.Hash, err error) {
 	if si, ok := t.TypedInput.(*SpendInput); ok {
 		o, err = ComputeOutputID(&si.SpendCommitment)
 	}
+	fmt.Println("spendoutputid ...")
 	return o, err
 }
 

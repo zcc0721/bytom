@@ -1,6 +1,9 @@
 package bc
 
-import "io"
+import (
+	"fmt"
+	"io"
+)
 
 // Output is the result of a transfer of value. The value it contains
 // may be accessed by a later Spend entry (if that entry can satisfy
@@ -10,7 +13,10 @@ import "io"
 
 func (Output) typ() string { return "output1" }
 func (o *Output) writeForHash(w io.Writer) {
+	fmt.Println("(o *Output) writeForHash")
+	fmt.Println("mustWriteForHash(w, o.Source)")
 	mustWriteForHash(w, o.Source)
+	fmt.Println("mustWriteForHash(w, o.ControlProgram)")
 	mustWriteForHash(w, o.ControlProgram)
 }
 

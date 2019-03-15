@@ -1,6 +1,8 @@
 package types
 
 import (
+	"fmt"
+
 	"github.com/bytom/consensus"
 	"github.com/bytom/protocol/bc"
 	"github.com/bytom/protocol/vm"
@@ -111,6 +113,7 @@ func mapTx(tx *TxData) (headerID bc.Hash, hdr *bc.TxHeader, entryMap map[bc.Hash
 				Value: &inp.AssetAmount,
 			}
 			spends = append(spends, spend)
+			fmt.Println("mux source position: ", muxSources[i].Position)
 
 		case *CoinbaseInput:
 			coinbase = bc.NewCoinbase(inp.Arbitrary)

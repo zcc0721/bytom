@@ -1,6 +1,7 @@
 package types
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/bytom/encoding/blockchain"
@@ -78,6 +79,8 @@ func ComputeOutputID(sc *SpendCommitment) (h bc.Hash, err error) {
 		Position: sc.SourcePosition,
 	}
 	o := bc.NewOutput(src, &bc.Program{VmVersion: sc.VMVersion, Code: sc.ControlProgram}, 0)
+
+	fmt.Println("o is:", o.String())
 
 	h = bc.EntryID(o)
 	return h, nil

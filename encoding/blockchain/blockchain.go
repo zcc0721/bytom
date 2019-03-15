@@ -4,7 +4,9 @@ package blockchain
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 	"math"
 	"sync"
@@ -137,12 +139,14 @@ func ReadExtensibleString(r *Reader, f func(*Reader) error) (suffix []byte, err 
 }
 
 func WriteVarint31(w io.Writer, val uint64) (int, error) {
+	fmt.Println("WriteVarint31(w io.Writer, val uint64)")
 	if val > math.MaxInt32 {
 		return 0, ErrRange
 	}
 	buf := bufPool.Get().(*[9]byte)
 	n := binary.PutUvarint(buf[:], val)
 	b, err := w.Write(buf[:n])
+	fmt.Println(hex.EncodeToString(buf[:n]))
 	bufPool.Put(buf)
 	return b, err
 }
@@ -159,10 +163,12 @@ func WriteVarint63(w io.Writer, val uint64) (int, error) {
 }
 
 func WriteVarstr31(w io.Writer, str []byte) (int, error) {
+	fmt.Println("WriteVarstr31(w io.Writer, str []byte)")
 	n, err := WriteVarint31(w, uint64(len(str)))
 	if err != nil {
 		return n, err
 	}
+	fmt.Println(hex.EncodeToString(str))
 	n2, err := w.Write(str)
 	return n + n2, err
 }
