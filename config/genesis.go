@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/hex"
+	"fmt"
 
 	log "github.com/sirupsen/logrus"
 
@@ -134,4 +135,14 @@ func GenesisBlock() *types.Block {
 		"test": testNetGenesisBlock,
 		"solo": soloNetGenesisBlock,
 	}[consensus.ActiveNetParams.Name]()
+}
+
+//
+func PrintGenesisTx() {
+	tx, _ := genesisTx().TxData.MarshalText()
+	fmt.Println("genesis tx:", tx)
+	newTx := make([]byte, len(tx)/2)
+	hex.Decode(newTx, tx)
+	strTx := hex.EncodeToString(newTx)
+	fmt.Println("genesis tx:", strTx)
 }
