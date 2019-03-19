@@ -120,6 +120,8 @@ func mapTx(tx *TxData) (headerID bc.Hash, hdr *bc.TxHeader, entryMap map[bc.Hash
 			coinbaseID := addEntry(coinbase)
 
 			out := tx.Outputs[0]
+			fmt.Println("out asset id:", out.AssetAmount.AssetId.String())
+			fmt.Println("out asset amount:", out.AssetAmount.Amount)
 			muxSources[i] = &bc.ValueSource{
 				Ref:   &coinbaseID,
 				Value: &out.AssetAmount,
