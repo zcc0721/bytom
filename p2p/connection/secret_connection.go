@@ -10,6 +10,7 @@ import (
 	"net"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/nacl/box"
 	"golang.org/x/crypto/nacl/secretbox"
 	"golang.org/x/crypto/ripemd160"
@@ -86,7 +87,12 @@ func MakeSecretConnection(conn io.ReadWriteCloser, locPrivKey crypto.PrivKeyEd25
 	if err != nil {
 		return nil, err
 	}
+
 	remPubKey, remSignature := authSigMsg.Key, authSigMsg.Sig
+	if _, ok := remPubKey.PubKeyInner.(crypto.PubKeyEd25519); !ok {
+		return nil, errors.New("peer sent a nil public key")
+	}
+
 	if !remPubKey.VerifyBytes(challenge[:], remSignature) {
 		return nil, errors.New("Challenge verification failed")
 	}
@@ -213,7 +219,7 @@ func genEphKeys() (ephPub, ephPriv *[32]byte) {
 	var err error
 	ephPub, ephPriv, err = box.GenerateKey(crand.Reader)
 	if err != nil {
-		cmn.PanicCrisis("Could not generate ephemeral keypairs")
+		log.Panic("Could not generate ephemeral keypairs")
 	}
 	return
 }

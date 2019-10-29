@@ -38,6 +38,7 @@ type AnnotatedInput struct {
 	Arbitrary        chainjson.HexBytes   `json:"arbitrary,omitempty"`
 	InputID          bc.Hash              `json:"input_id"`
 	WitnessArguments []chainjson.HexBytes `json:"witness_arguments"`
+	SignData         bc.Hash              `json:"sign_data,omitempty"`
 }
 
 //AnnotatedOutput means an annotated transaction output.
@@ -68,19 +69,23 @@ type AnnotatedAccount struct {
 
 //AnnotatedAsset means an annotated asset.
 type AnnotatedAsset struct {
-	ID              bc.AssetID         `json:"id"`
-	Alias           string             `json:"alias,omitempty"`
-	IssuanceProgram chainjson.HexBytes `json:"issuance_program"`
-	Keys            []*AssetKey        `json:"keys"`
-	Quorum          int                `json:"quorum"`
-	Definition      *json.RawMessage   `json:"definition"`
+	AnnotatedSigner
+	ID                bc.AssetID         `json:"id"`
+	Alias             string             `json:"alias"`
+	VMVersion         uint64             `json:"vm_version"`
+	IssuanceProgram   chainjson.HexBytes `json:"issue_program"`
+	RawDefinitionByte chainjson.HexBytes `json:"raw_definition_byte"`
+	Definition        *json.RawMessage   `json:"definition"`
+	LimitHeight       int64              `json:"limit_height"`
 }
 
-//AssetKey means an asset key.
-type AssetKey struct {
-	RootXPub            chainkd.XPub         `json:"root_xpub"`
-	AssetPubkey         chainjson.HexBytes   `json:"asset_pubkey"`
-	AssetDerivationPath []chainjson.HexBytes `json:"asset_derivation_path"`
+//AnnotatedSigner means an annotated signer for asset.
+type AnnotatedSigner struct {
+	Type       string         `json:"type"`
+	XPubs      []chainkd.XPub `json:"xpubs"`
+	Quorum     int            `json:"quorum"`
+	KeyIndex   uint64         `json:"key_index"`
+	DeriveRule uint8          `json:"derive_rule"`
 }
 
 //AnnotatedUTXO means an annotated utxo.

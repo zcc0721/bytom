@@ -48,8 +48,8 @@ func FinalizeTx(ctx context.Context, c *protocol.Chain, tx *types.Tx) error {
 	if err != nil {
 		return err
 	}
-	tx.TxData.SerializedSize = uint64(len(data))
-	tx.Tx.SerializedSize = uint64(len(data))
+	tx.TxData.SerializedSize = uint64(len(data) / 2)
+	tx.Tx.SerializedSize = uint64(len(data) / 2)
 
 	isOrphan, err := c.ValidateTx(tx)
 	if errors.Root(err) == protocol.ErrBadTx {
@@ -136,7 +136,10 @@ func CalculateTxFee(tx *types.Tx) (fee uint64) {
 	totalOutputBTM := uint64(0)
 
 	for _, input := range tx.Inputs {
-		if input.InputType() != types.CoinbaseInputType && input.AssetID() == *consensus.BTMAssetID {
+		if input.InputType() == types.CoinbaseInputType {
+			return 0
+		}
+		if input.AssetID() == *consensus.BTMAssetID {
 			totalInputBTM += input.Amount()
 		}
 	}

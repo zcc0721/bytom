@@ -8,8 +8,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/tendermint/tmlibs/db"
-
 	"github.com/bytom/account"
 	"github.com/bytom/blockchain/signers"
 	"github.com/bytom/crypto/ed25519/chainkd"
@@ -17,6 +15,7 @@ import (
 	"github.com/bytom/errors"
 	"github.com/bytom/protocol/bc"
 	"github.com/bytom/protocol/bc/types"
+	dbm "github.com/bytom/database/leveldb"
 )
 
 const (
@@ -171,7 +170,7 @@ func (rs *recoveryState) stateForScope(account *account.Account) {
 type recoveryManager struct {
 	mu sync.Mutex
 
-	db         db.DB
+	db         dbm.DB
 	accountMgr *account.Manager
 
 	locked int32
@@ -188,7 +187,7 @@ type recoveryManager struct {
 }
 
 // newRecoveryManager create recovery manger.
-func newRecoveryManager(db db.DB, accountMgr *account.Manager) *recoveryManager {
+func newRecoveryManager(db dbm.DB, accountMgr *account.Manager) *recoveryManager {
 	return &recoveryManager{
 		db:         db,
 		accountMgr: accountMgr,
@@ -217,6 +216,10 @@ func (m *recoveryManager) AddrResurrect(accts []*account.Account) error {
 	}
 
 	m.state.StartTime = time.Now()
+	if err := m.commitStatusInfo(); err != nil {
+		return err
+	}
+
 	m.started = true
 	return nil
 }
@@ -237,6 +240,10 @@ func (m *recoveryManager) AcctResurrect(xPubs []chainkd.XPub) error {
 		return err
 	}
 	m.state.StartTime = time.Now()
+	if err := m.commitStatusInfo(); err != nil {
+		return err
+	}
+
 	m.started = true
 	return nil
 }

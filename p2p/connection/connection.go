@@ -36,7 +36,7 @@ const (
 	defaultRecvMessageCapacity = 22020096      // 21MB
 	defaultRecvRate            = int64(512000) // 500KB/s
 	defaultSendTimeout         = 10 * time.Second
-	logModule                  = "p2p/conn"
+	logModule                  = "p2pConn"
 )
 
 type receiveCbFunc func(chID byte, msgBytes []byte)
@@ -154,6 +154,8 @@ func (c *MConnection) OnStart() error {
 func (c *MConnection) OnStop() {
 	c.BaseService.OnStop()
 	c.flushTimer.Stop()
+	c.pingTimer.Stop()
+	c.chStatsTimer.Stop()
 	if c.quit != nil {
 		close(c.quit)
 	}

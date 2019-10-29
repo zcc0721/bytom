@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/tendermint/tmlibs/db"
 
 	"github.com/bytom/account"
 	"github.com/bytom/asset"
@@ -15,6 +14,7 @@ import (
 	"github.com/bytom/consensus"
 	"github.com/bytom/consensus/segwit"
 	"github.com/bytom/crypto/sha3pool"
+	dbm "github.com/bytom/database/leveldb"
 	"github.com/bytom/protocol/bc"
 	"github.com/bytom/protocol/bc/types"
 	"github.com/bytom/protocol/vm/vmutil"
@@ -85,7 +85,7 @@ func (w *Wallet) getAliasDefinition(assetID bc.AssetID) (string, json.RawMessage
 }
 
 // annotateTxs adds account data to transactions
-func annotateTxsAccount(txs []*query.AnnotatedTx, walletDB db.DB) {
+func annotateTxsAccount(txs []*query.AnnotatedTx, walletDB dbm.DB) {
 	for i, tx := range txs {
 		for j, input := range tx.Inputs {
 			//issue asset tx input SpentOutputID is nil
@@ -110,7 +110,7 @@ func annotateTxsAccount(txs []*query.AnnotatedTx, walletDB db.DB) {
 	}
 }
 
-func getAccountFromACP(program []byte, walletDB db.DB) (*account.Account, error) {
+func getAccountFromACP(program []byte, walletDB dbm.DB) (*account.Account, error) {
 	var hash common.Hash
 	accountCP := account.CtrlProgram{}
 	localAccount := account.Account{}
@@ -177,6 +177,7 @@ func (w *Wallet) BuildAnnotatedInput(tx *types.Tx, i uint32) *query.AnnotatedInp
 	if orig.InputType() != types.CoinbaseInputType {
 		in.AssetID = orig.AssetID()
 		in.Amount = orig.Amount()
+		in.SignData = tx.SigHash(i)
 	}
 
 	id := tx.Tx.InputIDs[i]

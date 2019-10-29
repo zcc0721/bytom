@@ -87,6 +87,9 @@ type BaseConfig struct {
 	// This should be set in viper so it can unmarshal into this struct
 	RootDir string `mapstructure:"home"`
 
+	//The alias of the node
+	NodeAlias string `mapstructure:"node_alias"`
+
 	//The ID of the network to json
 	ChainID string `mapstructure:"chain_id"`
 
@@ -127,11 +130,17 @@ func DefaultBaseConfig() BaseConfig {
 		DBBackend:         "leveldb",
 		DBPath:            "data",
 		KeysPath:          "keystore",
+		NodeAlias:         "",
+		LogFile:           "log",
 	}
 }
 
 func (b BaseConfig) DBDir() string {
 	return rootify(b.DBPath, b.RootDir)
+}
+
+func (b BaseConfig) LogDir() string {
+	return rootify(b.LogFile, b.RootDir)
 }
 
 func (b BaseConfig) KeysDir() string {
@@ -145,12 +154,14 @@ type P2PConfig struct {
 	PrivateKey       string `mapstructure:"node_key"`
 	NodeKeyFile      string `mapstructure:"node_key_file"`
 	SkipUPNP         bool   `mapstructure:"skip_upnp"`
+	LANDiscover      bool   `mapstructure:"lan_discoverable"`
 	MaxNumPeers      int    `mapstructure:"max_num_peers"`
 	HandshakeTimeout int    `mapstructure:"handshake_timeout"`
 	DialTimeout      int    `mapstructure:"dial_timeout"`
 	ProxyAddress     string `mapstructure:"proxy_address"`
 	ProxyUsername    string `mapstructure:"proxy_username"`
 	ProxyPassword    string `mapstructure:"proxy_password"`
+	KeepDial         string `mapstructure:"keep_dial"`
 }
 
 // Default configurable p2p parameters.
@@ -159,6 +170,7 @@ func DefaultP2PConfig() *P2PConfig {
 		ListenAddress:    "tcp://0.0.0.0:46656",
 		NodeKeyFile:      "nodekey",
 		SkipUPNP:         false,
+		LANDiscover:      true,
 		MaxNumPeers:      50,
 		HandshakeTimeout: 30,
 		DialTimeout:      3,
@@ -172,6 +184,7 @@ func DefaultP2PConfig() *P2PConfig {
 type WalletConfig struct {
 	Disable  bool   `mapstructure:"disable"`
 	Rescan   bool   `mapstructure:"rescan"`
+	TxIndex  bool   `mapstructure:"txindex"`
 	MaxTxFee uint64 `mapstructure:"max_tx_fee"`
 }
 
@@ -211,6 +224,7 @@ func DefaultWalletConfig() *WalletConfig {
 	return &WalletConfig{
 		Disable:  false,
 		Rescan:   false,
+		TxIndex:  false,
 		MaxTxFee: uint64(1000000000),
 	}
 }

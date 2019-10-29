@@ -94,6 +94,10 @@ func (m *MiningPool) GetWork() (*types.BlockHeader, error) {
 
 // SubmitWork will try to submit the result to the blockchain
 func (m *MiningPool) SubmitWork(bh *types.BlockHeader) error {
+	if bh == nil {
+		return errors.New("can't submit empty block")
+	}
+
 	reply := make(chan error, 1)
 	m.submitCh <- &submitBlockMsg{blockHeader: bh, reply: reply}
 	err := <-reply
@@ -121,7 +125,7 @@ func (m *MiningPool) submitWork(bh *types.BlockHeader) error {
 		return errors.New("submit result is orphan")
 	}
 
-	if err := m.eventDispatcher.Post(event.NewMinedBlockEvent{Block: m.block}); err != nil {
+	if err := m.eventDispatcher.Post(event.NewMinedBlockEvent{Block: *m.block}); err != nil {
 		return err
 	}
 

@@ -9,6 +9,7 @@ import (
 	"github.com/bytom/consensus"
 	"github.com/bytom/errors"
 	"github.com/bytom/mining/tensority"
+	"github.com/bytom/p2p/security"
 	"github.com/bytom/protocol/bc"
 	"github.com/bytom/protocol/bc/types"
 )
@@ -29,6 +30,7 @@ var (
 	errRequestTimeout = errors.New("request timeout")
 	errPeerDropped    = errors.New("Peer dropped")
 	errPeerMisbehave  = errors.New("peer is misbehave")
+	ErrPeerMisbehave  = errors.New("peer is misbehave")
 )
 
 type blockMsg struct {
@@ -289,7 +291,9 @@ func (bk *blockKeeper) requireBlock(height uint64) (*types.Block, error) {
 		return nil, errPeerDropped
 	}
 
-	waitTicker := time.NewTimer(syncTimeout)
+	timeout := time.NewTimer(syncTimeout)
+	defer timeout.Stop()
+
 	for {
 		select {
 		case msg := <-bk.blockProcessCh:
@@ -300,7 +304,7 @@ func (bk *blockKeeper) requireBlock(height uint64) (*types.Block, error) {
 				continue
 			}
 			return msg.block, nil
-		case <-waitTicker.C:
+		case <-timeout.C:
 			return nil, errors.Wrap(errRequestTimeout, "requireBlock")
 		}
 	}
@@ -311,7 +315,9 @@ func (bk *blockKeeper) requireBlocks(locator []*bc.Hash, stopHash *bc.Hash) ([]*
 		return nil, errPeerDropped
 	}
 
-	waitTicker := time.NewTimer(syncTimeout)
+	timeout := time.NewTimer(syncTimeout)
+	defer timeout.Stop()
+
 	for {
 		select {
 		case msg := <-bk.blocksProcessCh:
@@ -319,7 +325,7 @@ func (bk *blockKeeper) requireBlocks(locator []*bc.Hash, stopHash *bc.Hash) ([]*
 				continue
 			}
 			return msg.blocks, nil
-		case <-waitTicker.C:
+		case <-timeout.C:
 			return nil, errors.Wrap(errRequestTimeout, "requireBlocks")
 		}
 	}
@@ -330,7 +336,9 @@ func (bk *blockKeeper) requireHeaders(locator []*bc.Hash, stopHash *bc.Hash) ([]
 		return nil, errPeerDropped
 	}
 
-	waitTicker := time.NewTimer(syncTimeout)
+	timeout := time.NewTimer(syncTimeout)
+	defer timeout.Stop()
+
 	for {
 		select {
 		case msg := <-bk.headersProcessCh:
@@ -338,7 +346,7 @@ func (bk *blockKeeper) requireHeaders(locator []*bc.Hash, stopHash *bc.Hash) ([]
 				continue
 			}
 			return msg.headers, nil
-		case <-waitTicker.C:
+		case <-timeout.C:
 			return nil, errors.Wrap(errRequestTimeout, "requireHeaders")
 		}
 	}
@@ -361,7 +369,7 @@ func (bk *blockKeeper) startSync() bool {
 		bk.syncPeer = peer
 		if err := bk.fastBlockSync(checkPoint); err != nil {
 			log.WithFields(log.Fields{"module": logModule, "err": err}).Warning("fail on fastBlockSync")
-			bk.peers.errorHandler(peer.ID(), err)
+			bk.peers.ProcessIllegal(peer.ID(), security.LevelMsgIllegal, err.Error())
 			return false
 		}
 		return true
@@ -378,7 +386,7 @@ func (bk *blockKeeper) startSync() bool {
 
 		if err := bk.regularBlockSync(targetHeight); err != nil {
 			log.WithFields(log.Fields{"module": logModule, "err": err}).Warning("fail on regularBlockSync")
-			bk.peers.errorHandler(peer.ID(), err)
+			bk.peers.ProcessIllegal(peer.ID(), security.LevelMsgIllegal, err.Error())
 			return false
 		}
 		return true
@@ -393,6 +401,8 @@ func (bk *blockKeeper) syncWorker() {
 		return
 	}
 	syncTicker := time.NewTicker(syncCycle)
+	defer syncTicker.Stop()
+
 	for {
 		<-syncTicker.C
 		if update := bk.startSync(); !update {
