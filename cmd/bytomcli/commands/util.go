@@ -18,6 +18,7 @@ type accountIns struct {
 	RootXPubs   []chainkd.XPub `json:"root_xpubs"`
 	Quorum      int            `json:"quorum"`
 	Alias       string         `json:"alias"`
+	Underived   bool           `json:"underived"`
 	AccessToken string         `json:"access_token"`
 }
 
