@@ -29,6 +29,7 @@ type assetIns struct {
 	Alias           string                 `json:"alias"`
 	Definition      map[string]interface{} `json:"definition"`
 	IssuanceProgram chainjson.HexBytes     `json:"issuance_program"`
+	Underived       bool                   `json:"underived"`
 	AccessToken     string                 `json:"access_token"`
 }
 
