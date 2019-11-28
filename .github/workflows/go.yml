@@ -17,7 +17,11 @@ jobs:
       uses: actions/checkout@v1
 
     - name: Make ci
-      run: make ci
+      run: |
+        mkdir -p $GOPATH/src/github.com/bytom
+        mv ../bytom $GOPATH/src/github.com/bytom
+        cd $GOPATH/src/github.com/bytom
+        make ci
 
     - name: Build
       run: go build -v .
