@@ -20,6 +20,8 @@ jobs:
       run: mkdir -p $GOPATH/src/github.com/bytom
     - name: Git clone
       run: git clone https://github.com/zcc0721/bytom.git $GOPATH/src/github.com/bytom
+    - name: cd
+      run: cd $GOPATH/src/github.com/bytom
     - name: Test
       run: go test ./...
     
