@@ -18,7 +18,7 @@ jobs:
 
     - name: Go test
       run:
-         bash go list ./...
+          bash go list ./...
       
   
 
