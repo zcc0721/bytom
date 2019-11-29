@@ -18,7 +18,7 @@ jobs:
 
     - name: Go test
       run: |
-        PACKAGES := $(shell go list ./...)
+        PACKAGES := $(go list ./...)
         make ci
 
     - name: Build
