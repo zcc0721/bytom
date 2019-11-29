@@ -16,6 +16,10 @@ jobs:
         go-version: ${{ matrix.go-version }}
     - name: Checkout code
       uses: actions/checkout@v1
+    - name: Print gopath
+      run: echo $GOPATH
+    - name: Print goroot
+      run: echo $GOROOT
     - name: Test
       run: go test ./...
     
