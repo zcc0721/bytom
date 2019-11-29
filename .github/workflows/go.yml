@@ -17,8 +17,8 @@ jobs:
       uses: actions/checkout@v1
 
     - name: Go test
-      shell: 
-         go list ./...
+      run:
+         bash go list ./...
       
   
 
