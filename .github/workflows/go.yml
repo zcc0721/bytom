@@ -1,5 +1,5 @@
 on: [push, pull_request]
-name: Go
+name: Test
 jobs:
   test:
     strategy:
@@ -8,20 +8,12 @@ jobs:
         platform: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.platform }}
     steps:
-    - name: PWD
-      run: pwd
     - name: Install Go
       uses: actions/setup-go@v1
       with:
         go-version: ${{ matrix.go-version }}
     - name: Checkout code
       uses: actions/checkout@v1
-    - name: mkdir
-      run: mkdir -p $GOPATH/src/github.com/bytom
-    - name: Git clone
-      run: git clone https://github.com/zcc0721/bytom.git $GOPATH/src/github.com/bytom
-    - name: cd
-      run: cd $GOPATH/src/github.com/bytom
     - name: Test
       run: go test ./...
     
